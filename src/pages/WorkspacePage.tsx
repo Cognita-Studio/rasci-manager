@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Plus, FolderOpen, Trash2, Copy, Check } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Copy, Check, CalendarDays } from 'lucide-react'
 import { getOrCreateWorkspace, listProjects, createProject, deleteProject } from '../lib/db'
 import type { Project } from '../types'
 import Spinner from '../components/ui/Spinner'
@@ -77,6 +77,10 @@ export default function WorkspacePage() {
             <p className="text-xs text-gray-400 mt-0.5">{t.myProjects}</p>
           </div>
           <div className="flex gap-2 items-center">
+            <a href="/schedule/" className="btn-secondary text-xs gap-1.5">
+              <CalendarDays size={14} />
+              <span className="hidden sm:inline">Yearly Plan</span>
+            </a>
             <button onClick={copyLink} className="btn-secondary text-xs">
               {copied ? <Check size={14} /> : <Copy size={14} />}
               <span className="hidden sm:inline">{copied ? t.copied : t.copyLink}</span>

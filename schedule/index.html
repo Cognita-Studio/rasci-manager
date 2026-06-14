@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Yearly Plan</title>
+<link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body data-theme="light">
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="back-link" title="Back to RASCI Manager">←</a>
+      <h1>Yearly Plan</h1>
+      <div class="year-picker">
+        <button id="prevYear" aria-label="Previous year">◀</button>
+        <input id="yearInput" type="number" min="1970" max="2100" />
+        <button id="nextYear" aria-label="Next year">▶</button>
+        <button id="todayBtn" title="Go to current year">Today</button>
+      </div>
+    </div>
+    <div class="topbar-right" id="topbarRight">
+      <span id="syncStatus" class="sync-status" title="Cloud sync status"></span>
+      <label class="theme-select">
+        Theme
+        <select id="themeSelect">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="solarized">Solarized</option>
+        </select>
+      </label>
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+      <button id="clearYearBtn" class="danger">Clear Year</button>
+    </div>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
+  </header>
+
+  <nav class="mobile-nav" id="mobileNav">
+    <button class="mobile-nav-btn" id="mobileNavBrush">🖌 Brush</button>
+    <button class="mobile-nav-btn" id="mobileNavStats">📊 Stats</button>
+  </nav>
+
+  <div class="sheet-overlay" id="sheetOverlay"></div>
+
+  <main class="layout">
+    <aside class="sidebar" id="sidebar">
+      <section class="panel" id="brushPanel">
+        <div class="panel-header">
+          <h2>Brush</h2>
+          <button class="panel-close" id="brushPanelClose" aria-label="Close">✕</button>
+        </div>
+        <p class="hint">Pick a category, then click a day or week number to paint. Click again to remove. Right-click to clear all.</p>
+        <ul id="brushList" class="brush-list"></ul>
+        <div class="brush-actions">
+          <button id="eraseBrush" class="ghost">Eraser</button>
+        </div>
+      </section>
+
+      <section class="panel" id="statsPanel">
+        <div class="panel-header">
+          <h2>Stats — <span id="statsYearLabel"></span></h2>
+          <button class="panel-close" id="statsPanelClose" aria-label="Close">✕</button>
+        </div>
+        <ul id="statsList" class="stats-list"></ul>
+        <div class="ratio-block">
+          <h3>Poland WFH share</h3>
+          <p class="hint">Share of WFH-Poland vs (Office + WFH-Norway + WFH-Poland)</p>
+          <div class="ratio-value" id="ratioValue">—</div>
+          <div class="bar"><div class="bar-fill" id="ratioBar"></div></div>
+          <div class="ratio-legend">
+            <span><i class="sw" data-cat="wfh_pl"></i> WFH PL <b id="cntWfhPl">0</b></span>
+            <span><i class="sw" data-cat="office"></i> Office <b id="cntOffice">0</b></span>
+            <span><i class="sw" data-cat="wfh_no"></i> WFH NO <b id="cntWfhNo">0</b></span>
+          </div>
+        </div>
+        <div class="extras">
+          <div><span>Total away from office</span><b id="awayCount">0</b></div>
+          <div><span>Holidays from work</span><b id="holidayCount">0</b></div>
+          <div><span>Travel mismatch (NO→PL)</span><b id="travelNpMismatch">0</b></div>
+          <div><span>Travel mismatch (PL→NO)</span><b id="travelPnMismatch">0</b></div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="calendar-wrap">
+      <div id="calendar" class="calendar-grid"></div>
+      <footer class="footnote">
+        <span>Click a day to toggle the active brush · Click a week number to apply to Mon–Fri · Hover a day to see categories · Right-click to clear</span>
+      </footer>
+    </section>
+  </main>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

@@ -100,3 +100,17 @@ create policy "public access" on tasks for all using (true) with check (true);
 create policy "public access" on stakeholder_groups for all using (true) with check (true);
 create policy "public access" on stakeholders for all using (true) with check (true);
 create policy "public access" on rasci_assignments for all using (true) with check (true);
+
+-- ============================================================
+-- Yearly Schedule Planner
+-- ============================================================
+
+create table if not exists schedule_data (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null unique,
+  data jsonb not null default '{"version":1,"years":{}}',
+  updated_at timestamptz not null default now()
+);
+
+alter table schedule_data enable row level security;
+create policy "public access" on schedule_data for all using (true) with check (true);
