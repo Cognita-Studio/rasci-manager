@@ -5,10 +5,13 @@ import { getOrCreateWorkspace, listProjects, createProject, deleteProject } from
 import type { Project } from '../types'
 import Spinner from '../components/ui/Spinner'
 import Modal from '../components/ui/Modal'
+import SettingsMenu from '../components/ui/SettingsMenu'
+import { useT } from '../lib/i18n'
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams<{ workspaceId: string }>()
   const navigate = useNavigate()
+  const { t } = useT()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,15 +62,10 @@ export default function WorkspacePage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Spinner size={40} />
-    </div>
+    <div className="min-h-screen flex items-center justify-center"><Spinner size={40} /></div>
   )
-
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center text-red-600">
-      Błąd: {error}
-    </div>
+    <div className="min-h-screen flex items-center justify-center text-red-600">Błąd: {error}</div>
   )
 
   return (
@@ -75,17 +73,18 @@ export default function WorkspacePage() {
       <header className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-indigo-700">RASCI Manager</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Twoje projekty</p>
+            <h1 className="text-xl font-bold theme-header-text">{t.appName}</h1>
+            <p className="text-xs text-gray-400 mt-0.5">{t.myProjects}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <button onClick={copyLink} className="btn-secondary text-xs">
               {copied ? <Check size={14} /> : <Copy size={14} />}
-              {copied ? 'Skopiowano!' : 'Kopiuj link dostępu'}
+              <span className="hidden sm:inline">{copied ? t.copied : t.copyLink}</span>
             </button>
             <button onClick={() => setShowCreate(true)} className="btn-primary">
-              <Plus size={16} /> Nowy projekt
+              <Plus size={16} /> {t.newProject}
             </button>
+            <SettingsMenu />
           </div>
         </div>
       </header>
@@ -94,9 +93,9 @@ export default function WorkspacePage() {
         {projects.length === 0 ? (
           <div className="card p-12 text-center">
             <FolderOpen size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 mb-6">Nie masz jeszcze żadnych projektów.</p>
+            <p className="text-gray-500 mb-6">{t.noProjects}</p>
             <button onClick={() => setShowCreate(true)} className="btn-primary">
-              <Plus size={16} /> Utwórz pierwszy projekt
+              <Plus size={16} /> {t.createFirst}
             </button>
           </div>
         ) : (
@@ -105,7 +104,9 @@ export default function WorkspacePage() {
               <div key={p.id} className="card p-5 hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between gap-2">
                   <Link to={`/${workspaceId}/project/${p.id}`} className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                    <h2 className="font-semibold text-gray-900 truncate group-hover:transition-colors" style={{ color: 'inherit' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-primary)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '')}>
                       {p.name}
                     </h2>
                     {p.description && (
@@ -129,34 +130,23 @@ export default function WorkspacePage() {
       </main>
 
       {showCreate && (
-        <Modal title="Nowy projekt" onClose={() => setShowCreate(false)} size="sm">
+        <Modal title={t.newProjectTitle} onClose={() => setShowCreate(false)} size="sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa projektu *</label>
-              <input
-                className="input"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="np. Wdrożenie systemu CRM"
-                autoFocus
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.projectName} *</label>
+              <input className="input" value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder={t.projectNamePlaceholder} autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleCreate()} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Opis (opcjonalny)</label>
-              <textarea
-                className="input resize-none"
-                rows={3}
-                value={newDesc}
-                onChange={e => setNewDesc(e.target.value)}
-                placeholder="Krótki opis projektu..."
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.description}</label>
+              <textarea className="input resize-none" rows={3} value={newDesc}
+                onChange={e => setNewDesc(e.target.value)} placeholder={t.descriptionPlaceholder} />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowCreate(false)} className="btn-secondary">Anuluj</button>
+              <button onClick={() => setShowCreate(false)} className="btn-secondary">{t.cancel}</button>
               <button onClick={handleCreate} disabled={!newName.trim() || saving} className="btn-primary">
-                {saving ? <Spinner size={16} /> : <Plus size={16} />}
-                Utwórz
+                {saving ? <Spinner size={16} /> : <Plus size={16} />} {t.create}
               </button>
             </div>
           </div>
@@ -164,15 +154,12 @@ export default function WorkspacePage() {
       )}
 
       {deleteTarget && (
-        <Modal title="Usuń projekt" onClose={() => setDeleteTarget(null)} size="sm">
-          <p className="text-gray-600 mb-6">
-            Czy na pewno chcesz usunąć projekt <strong>{deleteTarget.name}</strong>?
-            Wszystkie dane zostaną trwale usunięte.
-          </p>
+        <Modal title={t.deleteProject} onClose={() => setDeleteTarget(null)} size="sm">
+          <p className="text-gray-600 mb-6">{t.deleteProjectConfirm(deleteTarget.name)}</p>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Anuluj</button>
+            <button onClick={() => setDeleteTarget(null)} className="btn-secondary">{t.cancel}</button>
             <button onClick={handleDelete} className="btn-danger">
-              <Trash2 size={16} /> Usuń
+              <Trash2 size={16} /> {t.delete}
             </button>
           </div>
         </Modal>

@@ -3,37 +3,35 @@ import type { ProjectFull } from '../../types'
 import TasksTab from './TasksTab'
 import StakeholdersTab from './StakeholdersTab'
 import MatrixTab from './MatrixTab'
+import { useT } from '../../lib/i18n'
 
 type EditorTab = 'tasks' | 'stakeholders' | 'matrix'
 
-interface Props {
-  data: ProjectFull
-  onReload: () => void
-}
+interface Props { data: ProjectFull; onReload: () => void }
 
 export default function EditorView({ data, onReload }: Props) {
+  const { t } = useT()
   const [tab, setTab] = useState<EditorTab>('tasks')
 
   const tabs: { id: EditorTab; label: string }[] = [
-    { id: 'tasks', label: 'Zadania' },
-    { id: 'stakeholders', label: 'Interesariusze' },
-    { id: 'matrix', label: 'Macierz RASCI' },
+    { id: 'tasks', label: t.tasks },
+    { id: 'stakeholders', label: t.stakeholders },
+    { id: 'matrix', label: t.matrix },
   ]
 
   return (
     <div>
       <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
-        {tabs.map(t => (
+        {tabs.map(tb => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tb.id}
+            onClick={() => setTab(tb.id)}
             className={`px-5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors -mb-px ${
-              tab === t.id
-                ? 'border-indigo-600 text-indigo-700'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+              tab === tb.id ? 'border-current' : 'border-transparent text-gray-500 hover:text-gray-800'
             }`}
+            style={tab === tb.id ? { color: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : {}}
           >
-            {t.label}
+            {tb.label}
           </button>
         ))}
       </div>

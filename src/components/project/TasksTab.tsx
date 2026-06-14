@@ -1,27 +1,43 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import type { ProjectFull, Task, TaskGroup, Priority, TaskStatus } from '../../types'
-import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS } from '../../types'
-import {
-  createTaskGroup, updateTaskGroup, deleteTaskGroup,
-  createTask, updateTask, deleteTask,
-} from '../../lib/db'
+import { createTaskGroup, updateTaskGroup, deleteTaskGroup, createTask, updateTask, deleteTask } from '../../lib/db'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
+import { useT } from '../../lib/i18n'
 
 interface Props { data: ProjectFull; onReload: () => void }
 
+const PRIORITY_KEYS: Priority[] = ['critical', 'high', 'medium', 'low']
+const STATUS_KEYS: TaskStatus[] = ['not_started', 'in_progress', 'blocked', 'completed']
+
+const PRIORITY_COLORS: Record<Priority, string> = {
+  critical: 'bg-red-100 text-red-800',
+  high: 'bg-orange-100 text-orange-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  low: 'bg-gray-100 text-gray-600',
+}
+const STATUS_COLORS: Record<TaskStatus, string> = {
+  not_started: 'bg-gray-100 text-gray-600',
+  in_progress: 'bg-blue-100 text-blue-800',
+  blocked: 'bg-red-100 text-red-800',
+  completed: 'bg-green-100 text-green-800',
+}
+
 export default function TasksTab({ data, onReload }: Props) {
+  const { t } = useT()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [groupModal, setGroupModal] = useState<{ mode: 'create' | 'edit'; group?: TaskGroup } | null>(null)
   const [taskModal, setTaskModal] = useState<{ mode: 'create' | 'edit'; groupId: string; task?: Task } | null>(null)
   const [saving, setSaving] = useState(false)
-
   const [gName, setGName] = useState('')
   const [tName, setTName] = useState('')
   const [tDeadline, setTDeadline] = useState('')
   const [tPriority, setTPriority] = useState<Priority | ''>('')
   const [tStatus, setTStatus] = useState<TaskStatus>('not_started')
+
+  const priorityLabel = (k: Priority) => ({ critical: t.priorityCritical, high: t.priorityHigh, medium: t.priorityMedium, low: t.priorityLow }[k])
+  const statusLabel = (k: TaskStatus) => ({ not_started: t.statusNotStarted, in_progress: t.statusInProgress, blocked: t.statusBlocked, completed: t.statusCompleted }[k])
 
   const openGroupCreate = () => { setGName(''); setGroupModal({ mode: 'create' }) }
   const openGroupEdit = (g: TaskGroup) => { setGName(g.name); setGroupModal({ mode: 'edit', group: g }) }
@@ -38,17 +54,14 @@ export default function TasksTab({ data, onReload }: Props) {
     if (!gName.trim()) return
     setSaving(true)
     try {
-      if (groupModal?.mode === 'create') {
-        await createTaskGroup(data.project.id, gName.trim(), data.taskGroups.length)
-      } else if (groupModal?.group) {
-        await updateTaskGroup(groupModal.group.id, gName.trim())
-      }
+      if (groupModal?.mode === 'create') await createTaskGroup(data.project.id, gName.trim(), data.taskGroups.length)
+      else if (groupModal?.group) await updateTaskGroup(groupModal.group.id, gName.trim())
       onReload(); setGroupModal(null)
     } finally { setSaving(false) }
   }
 
   const removeGroup = async (g: TaskGroup) => {
-    if (!confirm(`Usuń grupę „${g.name}" i wszystkie jej zadania?`)) return
+    if (!confirm(t.deleteGroupConfirm(g.name))) return
     await deleteTaskGroup(g.id); onReload()
   }
 
@@ -58,33 +71,13 @@ export default function TasksTab({ data, onReload }: Props) {
     try {
       if (taskModal.mode === 'create') {
         const group = data.taskGroups.find(g => g.id === taskModal.groupId)
-        await createTask(taskModal.groupId, tName.trim(), group?.tasks.length ?? 0)
+        const task = await createTask(taskModal.groupId, tName.trim(), group?.tasks.length ?? 0)
         if (tDeadline || tPriority || tStatus !== 'not_started') {
-          // we need the id — just reload and it will have defaults
+          await updateTask(task.id, { deadline: tDeadline || null, priority: tPriority || null, status: tStatus })
         }
       } else if (taskModal.task) {
         await updateTask(taskModal.task.id, {
-          name: tName.trim(),
-          deadline: tDeadline || null,
-          priority: tPriority || null,
-          status: tStatus,
-        })
-      }
-      onReload(); setTaskModal(null)
-    } finally { setSaving(false) }
-  }
-
-  const saveNewTask = async () => {
-    if (!tName.trim() || !taskModal) return
-    setSaving(true)
-    try {
-      const group = data.taskGroups.find(g => g.id === taskModal.groupId)
-      const task = await createTask(taskModal.groupId, tName.trim(), group?.tasks.length ?? 0)
-      if (tDeadline || tPriority || tStatus !== 'not_started') {
-        await updateTask(task.id, {
-          deadline: tDeadline || null,
-          priority: tPriority || null,
-          status: tStatus,
+          name: tName.trim(), deadline: tDeadline || null, priority: tPriority || null, status: tStatus,
         })
       }
       onReload(); setTaskModal(null)
@@ -92,41 +85,38 @@ export default function TasksTab({ data, onReload }: Props) {
   }
 
   const removeTask = async (task: Task) => {
-    if (!confirm(`Usuń zadanie „${task.name}"?`)) return
+    if (!confirm(t.deleteTaskConfirm(task.name))) return
     await deleteTask(task.id); onReload()
   }
 
   const toggleGroup = (id: string) => {
-    setCollapsed(prev => {
-      const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
-    })
+    setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800">Grupy zadań i zadania</h2>
-        <button onClick={openGroupCreate} className="btn-primary">
-          <Plus size={15} /> Nowa grupa
-        </button>
+        <h2 className="text-lg font-semibold text-gray-800">{t.taskGroups}</h2>
+        <button onClick={openGroupCreate} className="btn-primary"><Plus size={15} /> {t.newGroup}</button>
       </div>
 
       {data.taskGroups.length === 0 && (
-        <div className="card p-10 text-center text-gray-400">
-          Brak grup zadań. Dodaj pierwszą grupę.
-        </div>
+        <div className="card p-10 text-center text-gray-400">{t.noGroups}</div>
       )}
 
       {data.taskGroups.map(group => (
         <div key={group.id} className="card overflow-hidden">
           <div
-            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border-b border-indigo-100 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-3 border-b cursor-pointer theme-group-bg theme-group-border"
             onClick={() => toggleGroup(group.id)}
           >
-            {collapsed.has(group.id) ? <ChevronRight size={16} className="text-indigo-500" /> : <ChevronDown size={16} className="text-indigo-500" />}
-            <span className="font-semibold text-indigo-800 flex-1">{group.name}</span>
-            <span className="text-xs text-indigo-400">{group.tasks.length} zadań</span>
-            <button onClick={e => { e.stopPropagation(); openGroupEdit(group) }} className="btn-ghost p-1 text-gray-500 hover:text-indigo-600">
+            {collapsed.has(group.id)
+              ? <ChevronRight size={16} style={{ color: 'var(--color-primary)' }} />
+              : <ChevronDown size={16} style={{ color: 'var(--color-primary)' }} />
+            }
+            <span className="font-semibold flex-1 theme-group-text">{group.name}</span>
+            <span className="text-xs opacity-60 theme-group-text">{t.tasks_count(group.tasks.length)}</span>
+            <button onClick={e => { e.stopPropagation(); openGroupEdit(group) }} className="btn-ghost p-1 text-gray-500">
               <Pencil size={14} />
             </button>
             <button onClick={e => { e.stopPropagation(); removeGroup(group) }} className="btn-ghost p-1 text-gray-500 hover:text-red-600">
@@ -142,38 +132,25 @@ export default function TasksTab({ data, onReload }: Props) {
                     <div className="font-medium text-gray-800 text-sm">{task.name}</div>
                     <div className="flex gap-2 mt-1 flex-wrap">
                       {task.status && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[task.status]}`}>
-                          {STATUS_LABELS[task.status]}
-                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[task.status]}`}>{statusLabel(task.status)}</span>
                       )}
                       {task.priority && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${PRIORITY_COLORS[task.priority]}`}>
-                          {PRIORITY_LABELS[task.priority]}
-                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${PRIORITY_COLORS[task.priority]}`}>{priorityLabel(task.priority)}</span>
                       )}
                       {task.deadline && (
-                        <span className="text-xs text-gray-400">
-                          📅 {new Date(task.deadline).toLocaleDateString('pl-PL')}
-                        </span>
+                        <span className="text-xs text-gray-400">📅 {new Date(task.deadline).toLocaleDateString('pl-PL')}</span>
                       )}
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openTaskEdit(group.id, task)} className="btn-ghost p-1 text-gray-500 hover:text-indigo-600">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => removeTask(task)} className="btn-ghost p-1 text-gray-500 hover:text-red-600">
-                      <Trash2 size={14} />
-                    </button>
+                    <button onClick={() => openTaskEdit(group.id, task)} className="btn-ghost p-1 text-gray-500"><Pencil size={14} /></button>
+                    <button onClick={() => removeTask(task)} className="btn-ghost p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
               <div className="px-4 py-2.5">
-                <button
-                  onClick={() => openTaskCreate(group.id)}
-                  className="btn-ghost text-xs text-indigo-600 hover:text-indigo-800"
-                >
-                  <Plus size={13} /> Dodaj zadanie
+                <button onClick={() => openTaskCreate(group.id)} className="btn-ghost text-xs" style={{ color: 'var(--color-primary)' }}>
+                  <Plus size={13} /> {t.addTask}
                 </button>
               </div>
             </div>
@@ -181,72 +158,54 @@ export default function TasksTab({ data, onReload }: Props) {
         </div>
       ))}
 
-      {/* Group modal */}
       {groupModal && (
-        <Modal
-          title={groupModal.mode === 'create' ? 'Nowa grupa zadań' : 'Edytuj grupę'}
-          onClose={() => setGroupModal(null)}
-          size="sm"
-        >
+        <Modal title={groupModal.mode === 'create' ? t.newGroupTitle : t.editGroup} onClose={() => setGroupModal(null)} size="sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa grupy *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.groupName} *</label>
               <input className="input" value={gName} onChange={e => setGName(e.target.value)} autoFocus
                 onKeyDown={e => e.key === 'Enter' && saveGroup()} />
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setGroupModal(null)} className="btn-secondary">Anuluj</button>
+              <button onClick={() => setGroupModal(null)} className="btn-secondary">{t.cancel}</button>
               <button onClick={saveGroup} disabled={!gName.trim() || saving} className="btn-primary">
-                {saving ? <Spinner size={15} /> : null} Zapisz
+                {saving ? <Spinner size={15} /> : null} {t.save}
               </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Task modal */}
       {taskModal && (
-        <Modal
-          title={taskModal.mode === 'create' ? 'Nowe zadanie' : 'Edytuj zadanie'}
-          onClose={() => setTaskModal(null)}
-          size="sm"
-        >
+        <Modal title={taskModal.mode === 'create' ? t.newTask : t.editTask} onClose={() => setTaskModal(null)} size="sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa zadania *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.taskName} *</label>
               <input className="input" value={tName} onChange={e => setTName(e.target.value)} autoFocus />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priorytet</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.priority}</label>
                 <select className="input" value={tPriority} onChange={e => setTPriority(e.target.value as Priority | '')}>
                   <option value="">—</option>
-                  {(Object.entries(PRIORITY_LABELS) as [Priority, string][]).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
+                  {PRIORITY_KEYS.map(k => <option key={k} value={k}>{priorityLabel(k)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.status}</label>
                 <select className="input" value={tStatus} onChange={e => setTStatus(e.target.value as TaskStatus)}>
-                  {(Object.entries(STATUS_LABELS) as [TaskStatus, string][]).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
+                  {STATUS_KEYS.map(k => <option key={k} value={k}>{statusLabel(k)}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Termin</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.deadline}</label>
               <input type="date" className="input" value={tDeadline} onChange={e => setTDeadline(e.target.value)} />
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setTaskModal(null)} className="btn-secondary">Anuluj</button>
-              <button
-                onClick={taskModal.mode === 'create' ? saveNewTask : saveTask}
-                disabled={!tName.trim() || saving}
-                className="btn-primary"
-              >
-                {saving ? <Spinner size={15} /> : null} Zapisz
+              <button onClick={() => setTaskModal(null)} className="btn-secondary">{t.cancel}</button>
+              <button onClick={saveTask} disabled={!tName.trim() || saving} className="btn-primary">
+                {saving ? <Spinner size={15} /> : null} {t.save}
               </button>
             </div>
           </div>
