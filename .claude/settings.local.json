@@ -6,7 +6,9 @@
       "Bash(npx tsc *)",
       "Bash(npm run *)",
       "Bash(ls /Users/witoldboguniewicz/claudecode01/calendar/)",
-      "Bash(mkdir -p /Users/witoldboguniewicz/claudecode01/RASCI/schedule/js /Users/witoldboguniewicz/claudecode01/RASCI/schedule/css && cp /Users/witoldboguniewicz/claudecode01/calendar/css/styles.css /Users/witoldboguniewicz/claudecode01/RASCI/schedule/css/styles.css)"
+      "Bash(mkdir -p /Users/witoldboguniewicz/claudecode01/RASCI/schedule/js /Users/witoldboguniewicz/claudecode01/RASCI/schedule/css && cp /Users/witoldboguniewicz/claudecode01/calendar/css/styles.css /Users/witoldboguniewicz/claudecode01/RASCI/schedule/css/styles.css)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

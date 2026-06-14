@@ -407,6 +407,14 @@ async function init() {
   document.getElementById('nextYear').addEventListener('click', () => setYear(state.year + 1))
   document.getElementById('todayBtn').addEventListener('click', () => setYear(new Date().getFullYear()))
 
+  const copyLinkBtn = document.getElementById('copyLinkBtn')
+  copyLinkBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.href)
+    const orig = copyLinkBtn.textContent
+    copyLinkBtn.textContent = '✓ Copied!'
+    setTimeout(() => { copyLinkBtn.textContent = orig }, 2000)
+  })
+
   document.getElementById('exportBtn').addEventListener('click', () => exportToFile(state.data))
   const importFile = document.getElementById('importFile')
   document.getElementById('importBtn').addEventListener('click', () => importFile.click())

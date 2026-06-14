@@ -8,11 +8,23 @@ const supabase = createClient(
 const LS_WORKSPACE = 'rasci_workspace_id'
 
 export function getWorkspaceId() {
+  // 1. URL param takes priority (?w=UUID) — allows cross-device sharing
+  const params = new URLSearchParams(window.location.search)
+  const urlId = params.get('w')
+  if (urlId && urlId.length > 10) {
+    localStorage.setItem(LS_WORKSPACE, urlId)
+    return urlId
+  }
+  // 2. Fallback to localStorage
   let id = localStorage.getItem(LS_WORKSPACE)
   if (!id) {
     id = crypto.randomUUID()
     localStorage.setItem(LS_WORKSPACE, id)
   }
+  // 3. Keep URL in sync
+  params.set('w', id)
+  const newUrl = window.location.pathname + '?' + params.toString()
+  window.history.replaceState(null, '', newUrl)
   return id
 }
 
