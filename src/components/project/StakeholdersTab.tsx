@@ -1,36 +1,45 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, User, Mail, Phone } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, UserPlus, Mail, Phone, Search } from 'lucide-react'
 import type { ProjectFull, Stakeholder, StakeholderGroup } from '../../types'
 import {
   createStakeholderGroup, updateStakeholderGroup, deleteStakeholderGroup,
-  createStakeholder, updateStakeholder, deleteStakeholder,
+  addStakeholderToProject, updateMembership, removeMembership,
+  listStakeholders, createStakeholder,
 } from '../../lib/db'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
-import { useT } from '../../lib/i18n'
 
 interface Props { data: ProjectFull; onReload: () => void }
-const EMPTY = { name: '', email: '', phone: '', position: '', project_role: '' }
 
 export default function StakeholdersTab({ data, onReload }: Props) {
-  const { t } = useT()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [groupModal, setGroupModal] = useState<{ mode: 'create' | 'edit'; group?: StakeholderGroup } | null>(null)
-  const [stModal, setStModal] = useState<{ mode: 'create' | 'edit'; groupId: string; stakeholder?: Stakeholder } | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [memberModal, setMemberModal] = useState<{
+    mode: 'add' | 'edit'; membershipId?: string; defaultGroupId?: string
+  } | null>(null)
   const [gName, setGName] = useState('')
-  const [fields, setFields] = useState(EMPTY)
+  const [saving, setSaving] = useState(false)
+  const [allStakeholders, setAllStakeholders] = useState<Stakeholder[]>([])
+  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState('')
+  const [memberGroupId, setMemberGroupId] = useState('')
+  const [memberRole, setMemberRole] = useState('')
+  // New stakeholder creation inside modal
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newPos, setNewPos] = useState('')
+  const [newEmail, setNewEmail] = useState('')
 
-  const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setFields(prev => ({ ...prev, [k]: e.target.value }))
+  const projectStakeholderIds = new Set(data.projectStakeholders.map(s => s.stakeholderId))
 
-  const openGroupCreate = () => { setGName(''); setGroupModal({ mode: 'create' }) }
-  const openGroupEdit = (g: StakeholderGroup) => { setGName(g.name); setGroupModal({ mode: 'edit', group: g }) }
-  const openStCreate = (groupId: string) => { setFields(EMPTY); setStModal({ mode: 'create', groupId }) }
-  const openStEdit = (groupId: string, s: Stakeholder) => {
-    setFields({ name: s.name, email: s.email ?? '', phone: s.phone ?? '', position: s.position ?? '', project_role: s.project_role ?? '' })
-    setStModal({ mode: 'edit', groupId, stakeholder: s })
+  const loadDirectory = () => {
+    if (!data.project.workspace_id) return
+    listStakeholders(data.project.workspace_id).then(setAllStakeholders)
   }
+
+  useEffect(() => { if (memberModal?.mode === 'add') loadDirectory() }, [memberModal])
+
+  const toggleGroup = (id: string) => setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const saveGroup = async () => {
     if (!gName.trim()) return
@@ -43,98 +52,99 @@ export default function StakeholdersTab({ data, onReload }: Props) {
   }
 
   const removeGroup = async (g: StakeholderGroup) => {
-    if (!confirm(t.deleteStakeholderGroupConfirm(g.name))) return
+    if (!confirm(`Usuń grupę „${g.name}" i wszystkich jej członków z projektu?`)) return
     await deleteStakeholderGroup(g.id); onReload()
   }
 
-  const saveSt = async () => {
-    if (!fields.name.trim() || !stModal) return
+  const openAddModal = (defaultGroupId = '') => {
+    setSearch(''); setSelectedId(''); setMemberGroupId(defaultGroupId); setMemberRole('')
+    setCreating(false); setNewName(''); setNewPos(''); setNewEmail('')
+    setMemberModal({ mode: 'add', defaultGroupId })
+  }
+
+  const openEditModal = (membershipId: string, groupId: string | null, role: string | null) => {
+    setMemberGroupId(groupId ?? ''); setMemberRole(role ?? '')
+    setMemberModal({ mode: 'edit', membershipId })
+  }
+
+  const saveMember = async () => {
     setSaving(true)
     try {
-      const payload = {
-        name: fields.name.trim(),
-        email: fields.email || null,
-        phone: fields.phone || null,
-        position: fields.position || null,
-        project_role: fields.project_role || null,
+      if (memberModal?.mode === 'add') {
+        let stakeholderId = selectedId
+        if (creating && newName.trim()) {
+          const s = await createStakeholder(data.project.workspace_id, {
+            name: newName.trim(), position: newPos || null, email: newEmail || null,
+          })
+          stakeholderId = s.id
+        }
+        if (!stakeholderId) return
+        await addStakeholderToProject(stakeholderId, data.project.id,
+          memberGroupId || null, memberRole || null, data.projectStakeholders.length)
+      } else if (memberModal?.membershipId) {
+        await updateMembership(memberModal.membershipId, {
+          group_id: memberGroupId || null, project_role: memberRole || null,
+        })
       }
-      if (stModal.mode === 'create') {
-        const group = data.stakeholderGroups.find(g => g.id === stModal.groupId)
-        await createStakeholder(stModal.groupId, payload, group?.stakeholders.length ?? 0)
-      } else if (stModal.stakeholder) {
-        await updateStakeholder(stModal.stakeholder.id, payload)
-      }
-      onReload(); setStModal(null)
+      onReload(); setMemberModal(null)
     } finally { setSaving(false) }
   }
 
-  const removeSt = async (s: Stakeholder) => {
-    if (!confirm(t.deleteStakeholderConfirm(s.name))) return
-    await deleteStakeholder(s.id); onReload()
+  const removeMember = async (membershipId: string, name: string) => {
+    if (!confirm(`Usuń „${name}" z tego projektu?`)) return
+    await removeMembership(membershipId); onReload()
   }
 
-  const toggleGroup = (id: string) => {
-    setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  }
+  const filtered = allStakeholders.filter(s =>
+    !projectStakeholderIds.has(s.id) &&
+    (s.name.toLowerCase().includes(search.toLowerCase()) || (s.position ?? '').toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const membersByGroup = (groupId: string) => data.projectStakeholders.filter(s => s.groupId === groupId)
+  const ungrouped = data.projectStakeholders.filter(s => !s.groupId)
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800">{t.stakeholderGroups}</h2>
-        <button onClick={openGroupCreate} className="btn-primary"><Plus size={15} /> {t.newGroup}</button>
+        <h2 className="text-lg font-semibold text-gray-800">Interesariusze projektu</h2>
+        <div className="flex gap-2">
+          <button onClick={() => openAddModal()} className="btn-secondary text-sm">
+            <UserPlus size={15} /> Dodaj z bazy
+          </button>
+          <button onClick={() => setGroupModal({ mode: 'create' })} className="btn-primary text-sm">
+            <Plus size={15} /> Nowa grupa
+          </button>
+        </div>
       </div>
 
-      {data.stakeholderGroups.length === 0 && (
-        <div className="card p-10 text-center text-gray-400">{t.noStakeholderGroups}</div>
+      {data.stakeholderGroups.length === 0 && data.projectStakeholders.length === 0 && (
+        <div className="card p-10 text-center text-gray-400">
+          Brak interesariuszy. Dodaj grupę i przypisz osoby z globalnej bazy.
+        </div>
       )}
 
       {data.stakeholderGroups.map(group => (
         <div key={group.id} className="card overflow-hidden">
-          <div
-            className="flex items-center gap-2 px-4 py-3 border-b cursor-pointer bg-purple-50 border-purple-100"
-            onClick={() => toggleGroup(group.id)}
-          >
-            {collapsed.has(group.id)
-              ? <ChevronRight size={16} className="text-purple-500" />
-              : <ChevronDown size={16} className="text-purple-500" />
-            }
+          <div className="flex items-center gap-2 px-4 py-3 bg-purple-50 border-b border-purple-100 cursor-pointer"
+            onClick={() => toggleGroup(group.id)}>
+            {collapsed.has(group.id) ? <ChevronRight size={16} className="text-purple-500" /> : <ChevronDown size={16} className="text-purple-500" />}
             <span className="font-semibold text-purple-800 flex-1">{group.name}</span>
-            <span className="text-xs text-purple-400">{t.people_count(group.stakeholders.length)}</span>
-            <button onClick={e => { e.stopPropagation(); openGroupEdit(group) }} className="btn-ghost p-1 text-gray-500">
-              <Pencil size={14} />
-            </button>
-            <button onClick={e => { e.stopPropagation(); removeGroup(group) }} className="btn-ghost p-1 text-gray-500 hover:text-red-600">
-              <Trash2 size={14} />
-            </button>
+            <span className="text-xs text-purple-400">{membersByGroup(group.id).length} osób</span>
+            <button onClick={e => { e.stopPropagation(); setGName(group.name); setGroupModal({ mode: 'edit', group }) }}
+              className="btn-ghost p-1 text-gray-500"><Pencil size={14} /></button>
+            <button onClick={e => { e.stopPropagation(); removeGroup(group) }}
+              className="btn-ghost p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
           </div>
-
           {!collapsed.has(group.id) && (
             <div>
-              {group.stakeholders.map(s => (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 group">
-                  <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                    {s.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-800 text-sm">{s.name}</div>
-                    <div className="flex gap-3 mt-0.5 flex-wrap">
-                      {s.position && <span className="text-xs text-gray-500">{s.position}</span>}
-                      {s.project_role && <span className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>{s.project_role}</span>}
-                    </div>
-                    <div className="flex gap-3 mt-0.5 flex-wrap">
-                      {s.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={11} />{s.email}</span>}
-                      {s.phone && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={11} />{s.phone}</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openStEdit(group.id, s)} className="btn-ghost p-1 text-gray-500"><Pencil size={14} /></button>
-                    <button onClick={() => removeSt(s)} className="btn-ghost p-1 text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
-                  </div>
-                </div>
+              {membersByGroup(group.id).map(s => (
+                <MemberRow key={s.membershipId} s={s}
+                  onEdit={() => openEditModal(s.membershipId, s.groupId, s.projectRole)}
+                  onRemove={() => removeMember(s.membershipId, s.name)} />
               ))}
               <div className="px-4 py-2.5">
-                <button onClick={() => openStCreate(group.id)} className="btn-ghost text-xs text-purple-600">
-                  <Plus size={13} /> {t.addStakeholder}
+                <button onClick={() => openAddModal(group.id)} className="btn-ghost text-xs text-purple-600">
+                  <Plus size={13} /> Dodaj do grupy
                 </button>
               </div>
             </div>
@@ -142,60 +152,153 @@ export default function StakeholdersTab({ data, onReload }: Props) {
         </div>
       ))}
 
+      {ungrouped.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bez grupy</span>
+          </div>
+          {ungrouped.map(s => (
+            <MemberRow key={s.membershipId} s={s}
+              onEdit={() => openEditModal(s.membershipId, s.groupId, s.projectRole)}
+              onRemove={() => removeMember(s.membershipId, s.name)} />
+          ))}
+        </div>
+      )}
+
+      {/* Group modal */}
       {groupModal && (
-        <Modal title={groupModal.mode === 'create' ? t.newStakeholderGroup : t.editStakeholderGroup} onClose={() => setGroupModal(null)} size="sm">
+        <Modal title={groupModal.mode === 'create' ? 'Nowa grupa' : 'Edytuj grupę'} onClose={() => setGroupModal(null)} size="sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t.groupName} *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa grupy *</label>
               <input className="input" value={gName} onChange={e => setGName(e.target.value)} autoFocus
                 onKeyDown={e => e.key === 'Enter' && saveGroup()} />
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setGroupModal(null)} className="btn-secondary">{t.cancel}</button>
+              <button onClick={() => setGroupModal(null)} className="btn-secondary">Anuluj</button>
               <button onClick={saveGroup} disabled={!gName.trim() || saving} className="btn-primary">
-                {saving ? <Spinner size={15} /> : null} {t.save}
+                {saving ? <Spinner size={15} /> : null} Zapisz
               </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {stModal && (
-        <Modal title={stModal.mode === 'create' ? t.newStakeholder : t.editStakeholder} onClose={() => setStModal(null)} size="md">
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t.fullName} *</label>
-              <input className="input" value={fields.name} onChange={set('name')} autoFocus placeholder={t.fullNamePlaceholder} />
-            </div>
+      {/* Add/edit member modal */}
+      {memberModal && (
+        <Modal title={memberModal.mode === 'add' ? 'Dodaj interesariusza' : 'Edytuj członkostwo'}
+          onClose={() => setMemberModal(null)} size="md">
+          <div className="space-y-4">
+            {memberModal.mode === 'add' && (
+              <>
+                <div className="flex gap-2 border-b border-gray-100 pb-3">
+                  <button onClick={() => setCreating(false)}
+                    className={`text-sm px-3 py-1 rounded-lg ${!creating ? 'btn-primary' : 'btn-ghost'}`}>
+                    Z bazy
+                  </button>
+                  <button onClick={() => setCreating(true)}
+                    className={`text-sm px-3 py-1 rounded-lg ${creating ? 'btn-primary' : 'btn-ghost'}`}>
+                    Utwórz nową osobę
+                  </button>
+                </div>
+                {!creating ? (
+                  <div>
+                    <div className="relative mb-2">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input className="input pl-8" placeholder="Szukaj…" value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                      {filtered.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">
+                          {search ? 'Brak wyników' : 'Wszyscy stakeholderzy są już w projekcie'}
+                        </p>
+                      ) : filtered.map(s => (
+                        <button key={s.id} onClick={() => setSelectedId(s.id)}
+                          className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-center gap-2 ${selectedId === s.id ? 'bg-indigo-50' : ''}`}>
+                          <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                            {s.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{s.name}</div>
+                            {s.position && <div className="text-xs text-gray-400">{s.position}</div>}
+                          </div>
+                          {selectedId === s.id && <span className="ml-auto text-indigo-600 text-xs">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Imię i nazwisko *</label>
+                      <input className="input" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Stanowisko</label>
+                        <input className="input" value={newPos} onChange={e => setNewPos(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">E-mail</label>
+                        <input className="input" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t.position}</label>
-                <input className="input" value={fields.position} onChange={set('position')} placeholder={t.positionPlaceholder} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Grupa w projekcie</label>
+                <select className="input" value={memberGroupId} onChange={e => setMemberGroupId(e.target.value)}>
+                  <option value="">— bez grupy —</option>
+                  {data.stakeholderGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t.projectRole}</label>
-                <input className="input" value={fields.project_role} onChange={set('project_role')} placeholder={t.projectRolePlaceholder} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rola w projekcie</label>
+                <input className="input" value={memberRole} onChange={e => setMemberRole(e.target.value)}
+                  placeholder="np. Sponsor" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t.email}</label>
-                <input className="input" type="email" value={fields.email} onChange={set('email')} placeholder="jan@firma.pl" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t.phone}</label>
-                <input className="input" type="tel" value={fields.phone} onChange={set('phone')} placeholder="+48 600 000 000" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setStModal(null)} className="btn-secondary">{t.cancel}</button>
-              <button onClick={saveSt} disabled={!fields.name.trim() || saving} className="btn-primary">
-                {saving ? <Spinner size={15} /> : <User size={15} />} {t.save}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setMemberModal(null)} className="btn-secondary">Anuluj</button>
+              <button
+                onClick={saveMember}
+                disabled={saving || (memberModal.mode === 'add' && !creating && !selectedId) || (creating && !newName.trim())}
+                className="btn-primary">
+                {saving ? <Spinner size={15} /> : null} Dodaj
               </button>
             </div>
           </div>
         </Modal>
       )}
+    </div>
+  )
+}
+
+function MemberRow({ s, onEdit, onRemove }: {
+  s: import('../../types').ProjectStakeholder
+  onEdit: () => void; onRemove: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 group">
+      <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+        {s.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-gray-800 text-sm">{s.name}</div>
+        <div className="flex gap-3 flex-wrap">
+          {s.position && <span className="text-xs text-gray-500">{s.position}</span>}
+          {s.projectRole && <span className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>{s.projectRole}</span>}
+          {s.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={10} />{s.email}</span>}
+          {s.phone && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} />{s.phone}</span>}
+        </div>
+      </div>
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onEdit} className="btn-ghost p-1 text-gray-500"><Pencil size={13} /></button>
+        <button onClick={onRemove} className="btn-ghost p-1 text-gray-500 hover:text-red-600"><Trash2 size={13} /></button>
+      </div>
     </div>
   )
 }
