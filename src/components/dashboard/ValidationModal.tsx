@@ -12,7 +12,7 @@ export default function ValidationModal({ data, onClose }: { data: ProjectFull; 
   const issues = useMemo(() => {
     const result: Issue[] = []
     const allTasks = data.taskGroups.flatMap(g => g.tasks)
-    const allStakeholders = data.stakeholderGroups.flatMap(g => g.stakeholders)
+    const allStakeholders = data.projectStakeholders
 
     for (const task of allTasks) {
       const assigns = data.assignments.filter(a => a.task_id === task.id)
@@ -35,7 +35,7 @@ export default function ValidationModal({ data, onClose }: { data: ProjectFull; 
     }
 
     for (const stakeholder of allStakeholders) {
-      const hasAny = data.assignments.some(a => a.stakeholder_id === stakeholder.id && a.roles.length > 0)
+      const hasAny = data.assignments.some(a => a.stakeholder_id === stakeholder.stakeholderId && a.roles.length > 0)
       if (!hasAny) {
         result.push({ type: 'warning', message: `Stakeholder „${stakeholder.name}" nie ma żadnych przypisanych ról` })
       }

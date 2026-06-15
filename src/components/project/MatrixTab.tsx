@@ -15,7 +15,7 @@ export default function MatrixTab({ data, onReload }: Props) {
   const [saving, setSaving] = useState(false)
 
   const allTasks = data.taskGroups.flatMap(g => g.tasks)
-  const allStakeholders = data.stakeholderGroups.flatMap(g => g.stakeholders)
+  const allStakeholders = data.projectStakeholders.slice().sort((a, b) => a.order - b.order)
 
   const assignMap = useMemo(() => {
     const m: Record<string, Record<string, RasciRole[]>> = {}
@@ -46,7 +46,7 @@ export default function MatrixTab({ data, onReload }: Props) {
   }
 
   const editingTask = editing ? allTasks.find(t => t.id === editing.taskId) : null
-  const editingSt = editing ? allStakeholders.find(s => s.id === editing.stakeholderId) : null
+  const editingSt = editing ? allStakeholders.find(s => s.stakeholderId === editing.stakeholderId) : null
 
   return (
     <div>
@@ -62,11 +62,11 @@ export default function MatrixTab({ data, onReload }: Props) {
                 <p className="font-medium text-gray-800 mb-3">{task.name}</p>
                 <div className="space-y-2">
                   {allStakeholders.map(s => {
-                    const roles = assignMap[task.id]?.[s.id] ?? []
+                    const roles = assignMap[task.id]?.[s.stakeholderId] ?? []
                     return (
                       <button
-                        key={s.id}
-                        onClick={() => openEdit(task.id, s.id)}
+                        key={s.stakeholderId}
+                        onClick={() => openEdit(task.id, s.stakeholderId)}
                         className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                       >
                         <span className="text-sm text-gray-700">{s.name}</span>
@@ -93,17 +93,20 @@ export default function MatrixTab({ data, onReload }: Props) {
               <th className="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[12rem]">
                 {t.task}
               </th>
-              {data.stakeholderGroups.map(sg => (
-                <th key={sg.id} colSpan={sg.stakeholders.length}
-                  className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-l border-gray-200 bg-purple-50">
-                  {sg.name}
-                </th>
-              ))}
+              {data.stakeholderGroups.map(sg => {
+                const count = data.projectStakeholders.filter(s => s.groupId === sg.id).length
+                return count > 0 ? (
+                  <th key={sg.id} colSpan={count}
+                    className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-l border-gray-200 bg-purple-50">
+                    {sg.name}
+                  </th>
+                ) : null
+              })}
             </tr>
             <tr className="border-b border-gray-200">
               <th className="sticky left-0 bg-white z-10" />
               {allStakeholders.map(s => (
-                <th key={s.id} className="px-2 py-2 text-center border-l border-gray-100">
+                <th key={s.stakeholderId} className="px-2 py-2 text-center border-l border-gray-100">
                   <div className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-[80px] mx-auto truncate" title={s.name}>
                     {s.name}
                   </div>
@@ -123,11 +126,11 @@ export default function MatrixTab({ data, onReload }: Props) {
                   <tr key={task.id} className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-2.5 sticky left-0 bg-inherit z-10 font-medium text-gray-800">{task.name}</td>
                     {allStakeholders.map(s => {
-                      const roles = assignMap[task.id]?.[s.id] ?? []
+                      const roles = assignMap[task.id]?.[s.stakeholderId] ?? []
                       return (
-                        <td key={s.id} className="px-2 py-2 text-center border-l border-gray-100">
+                        <td key={s.stakeholderId} className="px-2 py-2 text-center border-l border-gray-100">
                           <button
-                            onClick={() => openEdit(task.id, s.id)}
+                            onClick={() => openEdit(task.id, s.stakeholderId)}
                             className="min-w-[40px] min-h-[32px] flex gap-0.5 justify-center items-center mx-auto rounded hover:bg-gray-100 px-1 py-0.5 transition-colors"
                           >
                             {roles.length > 0

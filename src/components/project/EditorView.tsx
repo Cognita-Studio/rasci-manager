@@ -3,9 +3,11 @@ import type { ProjectFull } from '../../types'
 import TasksTab from './TasksTab'
 import StakeholdersTab from './StakeholdersTab'
 import MatrixTab from './MatrixTab'
+import RisksTab from './RisksTab'
+import RiskCategoriesTab from './RiskCategoriesTab'
 import { useT } from '../../lib/i18n'
 
-type EditorTab = 'tasks' | 'stakeholders' | 'matrix'
+type EditorTab = 'tasks' | 'stakeholders' | 'matrix' | 'risks' | 'riskCategories'
 
 interface Props { data: ProjectFull; onReload: () => void }
 
@@ -17,6 +19,8 @@ export default function EditorView({ data, onReload }: Props) {
     { id: 'tasks', label: t.tasks },
     { id: 'stakeholders', label: t.stakeholders },
     { id: 'matrix', label: t.matrix },
+    { id: 'risks', label: 'Ryzyka' },
+    { id: 'riskCategories', label: 'Kat. ryzyk' },
   ]
 
   return (
@@ -39,6 +43,8 @@ export default function EditorView({ data, onReload }: Props) {
       {tab === 'tasks' && <TasksTab data={data} onReload={onReload} />}
       {tab === 'stakeholders' && <StakeholdersTab data={data} onReload={onReload} />}
       {tab === 'matrix' && <MatrixTab data={data} onReload={onReload} />}
+      {tab === 'risks' && <RisksTab data={data} onReload={onReload} />}
+      {tab === 'riskCategories' && <RiskCategoriesTab data={data} onReload={onReload} />}
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { Plus, FolderOpen, Trash2, Copy, Check, CalendarDays } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Copy, Check, CalendarDays, Users } from 'lucide-react'
 import { getOrCreateWorkspace, listProjects, createProject, deleteProject } from '../lib/db'
 import type { Project } from '../types'
 import Spinner from '../components/ui/Spinner'
 import Modal from '../components/ui/Modal'
 import SettingsMenu from '../components/ui/SettingsMenu'
+import StakeholderDirectory from '../components/ui/StakeholderDirectory'
 import { useT } from '../lib/i18n'
 
 export default function WorkspacePage() {
@@ -16,6 +17,7 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showDirectory, setShowDirectory] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [saving, setSaving] = useState(false)
@@ -37,15 +39,10 @@ export default function WorkspacePage() {
     try {
       const p = await createProject(workspaceId, newName.trim(), newDesc.trim())
       setProjects(prev => [p, ...prev])
-      setShowCreate(false)
-      setNewName('')
-      setNewDesc('')
+      setShowCreate(false); setNewName(''); setNewDesc('')
       navigate(`/${workspaceId}/project/${p.id}`)
-    } catch (e: unknown) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
+    } catch (e: unknown) { setError((e as Error).message) }
+    finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -57,16 +54,11 @@ export default function WorkspacePage() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center"><Spinner size={40} /></div>
-  )
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center text-red-600">Błąd: {error}</div>
-  )
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size={40} /></div>
+  if (error) return <div className="min-h-screen flex items-center justify-center text-red-600">Błąd: {error}</div>
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,7 +68,11 @@ export default function WorkspacePage() {
             <h1 className="text-xl font-bold theme-header-text">{t.appName}</h1>
             <p className="text-xs text-gray-400 mt-0.5">{t.myProjects}</p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap justify-end">
+            <button onClick={() => setShowDirectory(true)} className="btn-secondary text-xs gap-1.5">
+              <Users size={14} />
+              <span className="hidden sm:inline">Stakeholderzy</span>
+            </button>
             <a href="/schedule/" className="btn-secondary text-xs gap-1.5">
               <CalendarDays size={14} />
               <span className="hidden sm:inline">Yearly Plan</span>
@@ -108,22 +104,14 @@ export default function WorkspacePage() {
               <div key={p.id} className="card p-5 hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between gap-2">
                   <Link to={`/${workspaceId}/project/${p.id}`} className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-gray-900 truncate group-hover:transition-colors" style={{ color: 'inherit' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-primary)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '')}>
+                    <h2 className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
                       {p.name}
                     </h2>
-                    {p.description && (
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{p.description}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-2">
-                      {new Date(p.created_at).toLocaleDateString('pl-PL')}
-                    </p>
+                    {p.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{p.description}</p>}
+                    <p className="text-xs text-gray-400 mt-2">{new Date(p.created_at).toLocaleDateString('pl-PL')}</p>
                   </Link>
-                  <button
-                    onClick={() => setDeleteTarget(p)}
-                    className="btn-ghost p-1.5 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
+                  <button onClick={() => setDeleteTarget(p)}
+                    className="btn-ghost p-1.5 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -162,11 +150,13 @@ export default function WorkspacePage() {
           <p className="text-gray-600 mb-6">{t.deleteProjectConfirm(deleteTarget.name)}</p>
           <div className="flex justify-end gap-2">
             <button onClick={() => setDeleteTarget(null)} className="btn-secondary">{t.cancel}</button>
-            <button onClick={handleDelete} className="btn-danger">
-              <Trash2 size={16} /> {t.delete}
-            </button>
+            <button onClick={handleDelete} className="btn-danger"><Trash2 size={16} /> {t.delete}</button>
           </div>
         </Modal>
+      )}
+
+      {showDirectory && workspaceId && (
+        <StakeholderDirectory workspaceId={workspaceId} onClose={() => setShowDirectory(false)} />
       )}
     </div>
   )

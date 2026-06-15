@@ -18,7 +18,13 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
   const [filters, setFilters] = useState<Filters>({ priority: '', status: '', deadline: '' })
   const [showFilters, setShowFilters] = useState(false)
 
-  const allStakeholders = data.stakeholderGroups.flatMap(g => g.stakeholders)
+  const stakeholdersByGroup = (gId: string) =>
+    data.projectStakeholders.filter(s => s.groupId === gId).sort((a, b) => a.order - b.order)
+  const ungroupedStakeholders = data.projectStakeholders.filter(s => !s.groupId).sort((a, b) => a.order - b.order)
+  const allStakeholders = [
+    ...data.stakeholderGroups.flatMap(g => stakeholdersByGroup(g.id)),
+    ...ungroupedStakeholders,
+  ]
 
   const assignMap = useMemo(() => {
     const m: Record<string, Record<string, RasciRole[]>> = {}
@@ -130,33 +136,35 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                 <th className="text-left px-3 py-3 font-medium text-gray-500 w-24">Status</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-500 w-24">Priorytet</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-500 w-24">Termin</th>
-                {data.stakeholderGroups.map(sg => (
-                  <>
-                    <th
-                      key={`sg-${sg.id}`}
-                      colSpan={sg.stakeholders.length}
-                      className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-l border-gray-200 bg-indigo-50"
-                    >
-                      {sg.name}
-                    </th>
-                  </>
+                {data.stakeholderGroups.map(sg => stakeholdersByGroup(sg.id).length > 0 && (
+                  <th
+                    key={`sg-${sg.id}`}
+                    colSpan={stakeholdersByGroup(sg.id).length}
+                    className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-l border-gray-200 bg-indigo-50"
+                  >
+                    {sg.name}
+                  </th>
                 ))}
+                {ungroupedStakeholders.length > 0 && (
+                  <th colSpan={ungroupedStakeholders.length}
+                    className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-l border-gray-200 bg-gray-50">
+                    —
+                  </th>
+                )}
               </tr>
               <tr className="border-b border-gray-200">
                 <th className="sticky left-0 bg-white z-10" />
                 <th /><th /><th />
-                {data.stakeholderGroups.flatMap(sg =>
-                  sg.stakeholders.map(s => (
-                    <th key={s.id} className="px-2 py-2 text-center border-l border-gray-100">
-                      <div className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-[80px] mx-auto truncate" title={s.name}>
-                        {s.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="text-[10px] text-gray-400 whitespace-nowrap max-w-[80px] mx-auto truncate" title={s.name}>
-                        {s.name}
-                      </div>
-                    </th>
-                  ))
-                )}
+                {allStakeholders.map(s => (
+                  <th key={s.stakeholderId} className="px-2 py-2 text-center border-l border-gray-100">
+                    <div className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-[80px] mx-auto truncate" title={s.name}>
+                      {s.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="text-[10px] text-gray-400 whitespace-nowrap max-w-[80px] mx-auto truncate" title={s.name}>
+                      {s.name}
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -207,9 +215,9 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                           {task.deadline && new Date(task.deadline).toLocaleDateString('pl-PL')}
                         </td>
                         {allStakeholders.map(s => {
-                          const roles = assignMap[task.id]?.[s.id] ?? []
+                          const roles = assignMap[task.id]?.[s.stakeholderId] ?? []
                           return (
-                            <td key={s.id} className="px-2 py-2.5 text-center border-l border-gray-100">
+                            <td key={s.stakeholderId} className="px-2 py-2.5 text-center border-l border-gray-100">
                               <div className="flex gap-0.5 justify-center flex-wrap">
                                 {roles.map(r => <RoleBadge key={r} role={r} />)}
                               </div>
@@ -288,7 +296,7 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                       {taskAssigns.length > 0 && (
                         <div className="border-t border-gray-100 pt-3 space-y-1.5">
                           {taskAssigns.map(a => {
-                            const stakeholder = allStakeholders.find(s => s.id === a.stakeholder_id)
+                            const stakeholder = allStakeholders.find(s => s.stakeholderId === a.stakeholder_id)
                             if (!stakeholder || a.roles.length === 0) return null
                             return (
                               <div key={a.id} className="flex items-center justify-between gap-2">
