@@ -1,9 +1,9 @@
 import { forwardRef, useState, useMemo } from 'react'
 import type { ProjectFull, Priority, TaskStatus, Task } from '../../types'
-import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS } from '../../types'
+import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_LABELS, RISK_STATUS_COLORS } from '../../types'
 import RoleBadge from '../ui/RoleBadge'
 import type { RasciRole } from '../../types'
-import { ChevronDown, ChevronRight, Filter, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Filter, X, ShieldAlert } from 'lucide-react'
 import { useT } from '../../lib/i18n'
 
 interface Filters {
@@ -60,6 +60,18 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
   const activeFilterCount = [filters.priority, filters.status, filters.deadline].filter(Boolean).length
   const toggleGroup = (id: string) => setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   const clearFilters = () => setFilters({ priority: '', status: '', deadline: '' })
+
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
+  const toggleTask = (id: string) => setExpandedTasks(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const risksForTask = useMemo(() => {
+    const m: Record<string, typeof data.risks> = {}
+    for (const link of data.riskTaskLinks) {
+      const risk = data.risks.find(r => r.id === link.risk_id)
+      if (risk) (m[link.task_id] ??= []).push(risk)
+    }
+    return m
+  }, [data.risks, data.riskTaskLinks])
 
   return (
     <div>
@@ -176,47 +188,90 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                         </div>
                       </td>
                     </tr>
-                    {!isCollapsed && visibleTasks.map((task, ti) => (
-                      <tr key={task.id}
-                        className="border-t hover:bg-black/5 transition-colors"
-                        style={{
-                          borderColor: 'var(--color-border-card)',
-                          backgroundColor: ti % 2 === 1 ? 'color-mix(in srgb, var(--color-bg-card) 90%, var(--color-bg-page))' : undefined,
-                        }}>
-                        <td className="px-4 py-2.5 sticky left-0 z-10 font-medium"
-                          style={{ color: 'var(--color-text-body)', backgroundColor: 'var(--color-bg-card)' }}>
-                          {task.name}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {task.status && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[task.status]}`}>
-                              {STATUS_LABELS[task.status]}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {task.priority && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}>
-                              {PRIORITY_LABELS[task.priority]}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs opacity-60 whitespace-nowrap" style={{ color: 'var(--color-text-body)' }}>
-                          {task.deadline && new Date(task.deadline).toLocaleDateString()}
-                        </td>
-                        {allStakeholders.map(s => {
-                          const roles = assignMap[task.id]?.[s.stakeholderId] ?? []
-                          return (
-                            <td key={s.stakeholderId} className="px-2 py-2.5 text-center border-l"
-                              style={{ borderColor: 'var(--color-border-card)' }}>
-                              <div className="flex gap-0.5 justify-center flex-wrap">
-                                {roles.map(r => <RoleBadge key={r} role={r} />)}
+                    {!isCollapsed && visibleTasks.map((task, ti) => {
+                      const taskRisks = risksForTask[task.id] ?? []
+                      const isTaskExpanded = expandedTasks.has(task.id)
+                      const rowBg = ti % 2 === 1
+                        ? 'color-mix(in srgb, var(--color-bg-card) 90%, var(--color-bg-page))'
+                        : 'var(--color-bg-card)'
+                      return (
+                        <>
+                          <tr key={task.id}
+                            className="border-t hover:bg-black/5 transition-colors"
+                            style={{ borderColor: 'var(--color-border-card)', backgroundColor: rowBg }}>
+                            <td className="px-4 py-2.5 sticky left-0 z-10 font-medium"
+                              style={{ color: 'var(--color-text-body)', backgroundColor: rowBg }}>
+                              <div className="flex items-center gap-2">
+                                {task.name}
+                                {taskRisks.length > 0 && (
+                                  <button
+                                    onClick={() => toggleTask(task.id)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors flex-shrink-0"
+                                    style={{
+                                      background: isTaskExpanded ? 'var(--color-primary)' : 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                                      color: isTaskExpanded ? 'white' : 'var(--color-primary)',
+                                    }}
+                                    title={t.risks}
+                                  >
+                                    <ShieldAlert size={10} />
+                                    {taskRisks.length}
+                                  </button>
+                                )}
                               </div>
                             </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
+                            <td className="px-3 py-2.5">
+                              {task.status && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[task.status]}`}>
+                                  {STATUS_LABELS[task.status]}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              {task.priority && (
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[task.priority]}`}>
+                                  {PRIORITY_LABELS[task.priority]}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs opacity-60 whitespace-nowrap" style={{ color: 'var(--color-text-body)' }}>
+                              {task.deadline && new Date(task.deadline).toLocaleDateString()}
+                            </td>
+                            {allStakeholders.map(s => {
+                              const roles = assignMap[task.id]?.[s.stakeholderId] ?? []
+                              return (
+                                <td key={s.stakeholderId} className="px-2 py-2.5 text-center border-l"
+                                  style={{ borderColor: 'var(--color-border-card)' }}>
+                                  <div className="flex gap-0.5 justify-center flex-wrap">
+                                    {roles.map(r => <RoleBadge key={r} role={r} />)}
+                                  </div>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                          {isTaskExpanded && taskRisks.length > 0 && (
+                            <tr key={`${task.id}-risks`} style={{ borderColor: 'var(--color-border-card)' }}>
+                              <td colSpan={4 + allStakeholders.length} className="px-4 py-2"
+                                style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-card))' }}>
+                                <div className="flex flex-wrap gap-2">
+                                  {taskRisks.sort((a, b) => b.score - a.score).map(risk => (
+                                    <div key={risk.id} className="flex items-center gap-1.5 text-xs rounded-lg px-2 py-1 border"
+                                      style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 25%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+                                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${riskScoreColor(risk.score)}`}>
+                                        {risk.score}
+                                      </span>
+                                      <span className="font-medium" style={{ color: 'var(--color-text-body)' }}>{risk.title}</span>
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${RISK_STATUS_COLORS[risk.status]}`}>
+                                        {RISK_STATUS_LABELS[risk.status]}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )
+                    })}
                   </>
                 )
               })}
@@ -256,6 +311,7 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
               <div className="space-y-3">
                 {visibleTasks.map(task => {
                   const taskAssigns = data.assignments.filter(a => a.task_id === task.id)
+                  const taskRisks = risksForTask[task.id] ?? []
                   return (
                     <div key={task.id} className="card p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -294,6 +350,26 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                               </div>
                             )
                           })}
+                        </div>
+                      )}
+                      {taskRisks.length > 0 && (
+                        <div className="border-t pt-3 mt-1" style={{ borderColor: 'var(--color-border-card)' }}>
+                          <div className="flex items-center gap-1 mb-2 text-[11px] font-semibold opacity-60" style={{ color: 'var(--color-text-body)' }}>
+                            <ShieldAlert size={12} /> {t.risks}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            {taskRisks.sort((a, b) => b.score - a.score).map(risk => (
+                              <div key={risk.id} className="flex items-center gap-2 text-xs">
+                                <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${riskScoreColor(risk.score)}`}>
+                                  {risk.score}
+                                </span>
+                                <span className="flex-1 truncate" style={{ color: 'var(--color-text-body)' }}>{risk.title}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${RISK_STATUS_COLORS[risk.status]}`}>
+                                  {RISK_STATUS_LABELS[risk.status]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
