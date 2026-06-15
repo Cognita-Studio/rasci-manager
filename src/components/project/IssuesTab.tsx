@@ -28,6 +28,7 @@ export default function IssuesTab({ data, onReload }: Props) {
   const [history, setHistory] = useState<IssueHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [initializingCats, setInitializingCats] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const allTasks = data.taskGroups.flatMap(g => g.tasks)
 
@@ -83,12 +84,15 @@ export default function IssuesTab({ data, onReload }: Props) {
         await setIssueRiskLinks(modal.issue.id, [...linkedRiskIds])
       }
       onReload(); setModal(null)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally { setSaving(false) }
   }
 
   const remove = async (issue: Issue) => {
     if (!confirm(t.issueDeleteConfirm(issue.title))) return
-    await deleteIssue(issue.id); onReload()
+    try { await deleteIssue(issue.id); onReload() }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)) }
   }
 
   const showHistory = async (issue: Issue) => {
@@ -101,9 +105,13 @@ export default function IssuesTab({ data, onReload }: Props) {
   const toggleRisk = (id: string) => setLinkedRiskIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const initCategories = async () => {
-    setInitializingCats(true)
-    await createDefaultIssueCategories(data.project.id)
-    onReload(); setInitializingCats(false)
+    setInitializingCats(true); setError(null)
+    try {
+      await createDefaultIssueCategories(data.project.id)
+      onReload()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally { setInitializingCats(false) }
   }
 
   const getLinkedTasks = (issueId: string) =>
@@ -130,6 +138,12 @@ export default function IssuesTab({ data, onReload }: Props) {
           <button onClick={openCreate} className="btn-primary"><Plus size={15} /> {t.issueAdd}</button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          {error}
+        </div>
+      )}
 
       {data.issues.length === 0 ? (
         <div className="card p-10 text-center opacity-50" style={{ color: 'var(--color-text-body)' }}>{t.issueNone}</div>

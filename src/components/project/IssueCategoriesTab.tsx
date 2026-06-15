@@ -16,23 +16,27 @@ export default function IssueCategoriesTab({ data, onReload }: Props) {
   const [name, setName] = useState('')
   const [color, setColor] = useState('#ef4444')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const openCreate = () => { setName(''); setColor('#ef4444'); setModal({ mode: 'create' }) }
   const openEdit = (c: IssueCategory) => { setName(c.name); setColor(c.color); setModal({ mode: 'edit', cat: c }) }
 
   const save = async () => {
     if (!name.trim()) return
-    setSaving(true)
+    setSaving(true); setError(null)
     try {
       if (modal?.mode === 'create') await createIssueCategory(data.project.id, name.trim(), color, data.issueCategories.length)
       else if (modal?.cat) await updateIssueCategory(modal.cat.id, { name: name.trim(), color })
       onReload(); setModal(null)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally { setSaving(false) }
   }
 
   const remove = async (c: IssueCategory) => {
     if (!confirm(t.issueCatDeleteConfirm(c.name))) return
-    await deleteIssueCategory(c.id); onReload()
+    try { await deleteIssueCategory(c.id); onReload() }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : String(e)) }
   }
 
   return (
@@ -41,6 +45,12 @@ export default function IssueCategoriesTab({ data, onReload }: Props) {
         <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-body)' }}>{t.issueCategories}</h2>
         <button onClick={openCreate} className="btn-primary"><Plus size={15} /> {t.issueCatAdd}</button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          {error}
+        </div>
+      )}
 
       {data.issueCategories.length === 0 ? (
         <div className="card p-10 text-center opacity-50" style={{ color: 'var(--color-text-body)' }}>{t.issueCatNone}</div>

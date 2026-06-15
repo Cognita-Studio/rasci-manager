@@ -272,9 +272,10 @@ export async function loadRiskHistory(riskId: string): Promise<RiskHistory[]> {
 
 // ── Issue Categories ────────────────────────────────────────
 export async function createDefaultIssueCategories(projectId: string): Promise<void> {
-  await supabase.from('issue_categories').insert(
+  const { error } = await supabase.from('issue_categories').insert(
     ISSUE_DEFAULTS.map((c, i) => ({ project_id: projectId, ...c, order: i }))
   )
+  if (error) throw error
 }
 export async function createIssueCategory(projectId: string, name: string, color: string, order: number): Promise<IssueCategory> {
   const { data, error } = await supabase.from('issue_categories')
