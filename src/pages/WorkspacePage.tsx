@@ -61,8 +61,8 @@ export default function WorkspacePage() {
   if (error) return <div className="min-h-screen flex items-center justify-center text-red-600">Błąd: {error}</div>
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
+    <div className="min-h-screen page-bg">
+      <header className="header-bg border-b px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold theme-header-text">{t.appName}</h1>

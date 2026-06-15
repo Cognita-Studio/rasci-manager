@@ -1,21 +1,65 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 
-export type ThemeId = 'indigo' | 'emerald' | 'violet' | 'rose' | 'sky'
+export type ThemeId = 'night' | 'slate' | 'indigo' | 'emerald' | 'snow'
 
-export const THEMES: { id: ThemeId; label: string; primary: string; light: string; dark: string }[] = [
-  { id: 'indigo', label: '🔵 Indygo',   primary: '#4f46e5', light: '#eef2ff', dark: '#3730a3' },
-  { id: 'emerald',label: '🟢 Szmaragd', primary: '#059669', light: '#ecfdf5', dark: '#047857' },
-  { id: 'violet', label: '🟣 Fiolet',   primary: '#7c3aed', light: '#f5f3ff', dark: '#6d28d9' },
-  { id: 'rose',   label: '🌸 Róż',      primary: '#e11d48', light: '#fff1f2', dark: '#be123c' },
-  { id: 'sky',    label: '🩵 Niebo',    primary: '#0284c7', light: '#f0f9ff', dark: '#0369a1' },
+export const THEMES: {
+  id: ThemeId; label: string
+  primary: string; light: string; dark: string
+  bgPage: string; bgHeader: string; bgCard: string
+  textBody: string; borderCard: string
+}[] = [
+  {
+    id: 'night',
+    label: '🌑 Noc',
+    primary: '#818cf8', light: '#312e81', dark: '#a5b4fc',
+    bgPage: '#0f172a', bgHeader: '#1e293b', bgCard: '#1e293b',
+    textBody: '#e2e8f0', borderCard: '#334155',
+  },
+  {
+    id: 'slate',
+    label: '🌒 Grafit',
+    primary: '#60a5fa', light: '#1e3a5f', dark: '#93c5fd',
+    bgPage: '#1e293b', bgHeader: '#0f172a', bgCard: '#263548',
+    textBody: '#e2e8f0', borderCard: '#334155',
+  },
+  {
+    id: 'indigo',
+    label: '🔵 Indygo',
+    primary: '#4f46e5', light: '#eef2ff', dark: '#3730a3',
+    bgPage: '#f8fafc', bgHeader: '#ffffff', bgCard: '#ffffff',
+    textBody: '#374151', borderCard: '#e5e7eb',
+  },
+  {
+    id: 'emerald',
+    label: '🟢 Natura',
+    primary: '#059669', light: '#ecfdf5', dark: '#047857',
+    bgPage: '#f0fdf4', bgHeader: '#ffffff', bgCard: '#ffffff',
+    textBody: '#374151', borderCard: '#e5e7eb',
+  },
+  {
+    id: 'snow',
+    label: '⬜ Śnieg',
+    primary: '#7c3aed', light: '#f5f3ff', dark: '#6d28d9',
+    bgPage: '#ffffff', bgHeader: '#faf5ff', bgCard: '#ffffff',
+    textBody: '#374151', borderCard: '#e5e7eb',
+  },
 ]
 
+export function isDark(id: ThemeId) {
+  return id === 'night' || id === 'slate'
+}
+
 function applyTheme(id: ThemeId) {
-  const t = THEMES.find(t => t.id === id) ?? THEMES[0]
+  const theme = THEMES.find(t => t.id === id) ?? THEMES[2]
   const root = document.documentElement
-  root.style.setProperty('--color-primary', t.primary)
-  root.style.setProperty('--color-primary-light', t.light)
-  root.style.setProperty('--color-primary-dark', t.dark)
+  root.style.setProperty('--color-primary', theme.primary)
+  root.style.setProperty('--color-primary-light', theme.light)
+  root.style.setProperty('--color-primary-dark', theme.dark)
+  root.style.setProperty('--color-bg-page', theme.bgPage)
+  root.style.setProperty('--color-bg-header', theme.bgHeader)
+  root.style.setProperty('--color-bg-card', theme.bgCard)
+  root.style.setProperty('--color-text-body', theme.textBody)
+  root.style.setProperty('--color-border-card', theme.borderCard)
 }
 
 const ThemeContext = createContext<{ themeId: ThemeId; setTheme: (id: ThemeId) => void }>({

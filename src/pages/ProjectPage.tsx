@@ -71,8 +71,8 @@ export default function ProjectPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-30">
+    <div className="min-h-screen page-bg flex flex-col">
+      <header className="header-bg border-b px-4 py-3 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <Link to={`/${workspaceId}`} className="btn-ghost p-1.5 rounded-lg text-gray-500 flex-shrink-0">
             <ArrowLeft size={18} />

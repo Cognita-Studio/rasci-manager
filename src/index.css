@@ -6,6 +6,16 @@
   --color-primary: #4f46e5;
   --color-primary-light: #eef2ff;
   --color-primary-dark: #3730a3;
+  --color-bg-page: #f8fafc;
+  --color-bg-header: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-text-body: #374151;
+  --color-border-card: #e5e7eb;
+}
+
+body {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-body);
 }
 
 @layer components {
@@ -17,12 +27,14 @@
   .btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm cursor-pointer; }
   .btn-primary { color: white; background-color: var(--color-primary); @apply btn; }
   .btn-primary:hover { background-color: var(--color-primary-dark); }
-  .btn-secondary { @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50; }
+  .btn-secondary { background-color: var(--color-bg-card); color: var(--color-text-body); @apply btn border border-[var(--color-border-card)] hover:opacity-80; }
   .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
-  .btn-ghost { @apply btn text-gray-600 hover:bg-gray-100; }
-  .input { @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none bg-white; }
-  .input:focus { outline: none; ring: 2px; border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent); }
-  .card { @apply bg-white rounded-xl border border-gray-200 shadow-sm; }
+  .btn-ghost { color: var(--color-text-body); @apply btn hover:bg-black/10; }
+  .input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--color-border-card); border-radius: 0.5rem; font-size: 0.875rem; background-color: var(--color-bg-card); color: var(--color-text-body); }
+  .input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .card { background-color: var(--color-bg-card); border: 1px solid var(--color-border-card); @apply rounded-xl shadow-sm; }
+  .page-bg { background-color: var(--color-bg-page); }
+  .header-bg { background-color: var(--color-bg-header); border-color: var(--color-border-card); }
   .theme-tab-active { color: white; background-color: var(--color-primary); }
   .theme-header-text { color: var(--color-primary); }
   .theme-group-bg { background-color: var(--color-primary-light); }
