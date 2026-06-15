@@ -19,8 +19,8 @@ export default function EditorView({ data, onReload }: Props) {
     { id: 'tasks', label: t.tasks },
     { id: 'stakeholders', label: t.stakeholders },
     { id: 'matrix', label: t.matrix },
-    { id: 'risks', label: 'Ryzyka' },
-    { id: 'riskCategories', label: 'Kat. ryzyk' },
+    { id: 'risks', label: t.risks },
+    { id: 'riskCategories', label: t.riskCategories },
   ]
 
   return (

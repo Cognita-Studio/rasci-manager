@@ -116,7 +116,7 @@ export default function ProjectPage() {
         <div className="max-w-7xl mx-auto flex gap-1 mt-3">
           {([
             ['dashboard', t.dashboard, LayoutGrid],
-            ['risks', 'Ryzyka', ShieldAlert],
+            ['risks', t.risks, ShieldAlert],
             ['editor', t.editor, Settings],
           ] as const).map(([id, label, Icon]) => (
             <button
