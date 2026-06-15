@@ -89,6 +89,43 @@ export interface RiskHistory {
   old_value: string | null; new_value: string | null
 }
 
+export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
+
+export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
+  open: 'Otwarte', in_progress: 'W trakcie', resolved: 'Rozwiązane', closed: 'Zamknięte',
+}
+export const ISSUE_STATUS_COLORS: Record<IssueStatus, string> = {
+  open: 'bg-red-100 text-red-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  resolved: 'bg-green-100 text-green-700',
+  closed: 'bg-gray-100 text-gray-500',
+}
+
+export interface IssueCategory { id: string; project_id: string; name: string; color: string; order: number }
+
+export interface Issue {
+  id: string; project_id: string; title: string; description: string | null
+  category_id: string | null; status: IssueStatus; priority: Priority | null
+  owner_id: string | null; deadline: string | null
+  created_at: string; updated_at: string
+}
+
+export interface IssueTaskLink { issue_id: string; task_id: string }
+export interface IssueRiskLink { issue_id: string; risk_id: string }
+
+export interface IssueHistory {
+  id: string; issue_id: string; changed_at: string; field: string
+  old_value: string | null; new_value: string | null
+}
+
+export const DEFAULT_ISSUE_CATEGORIES = [
+  { name: 'Błąd / Bug',         color: '#ef4444' },
+  { name: 'Zmiana zakresu',     color: '#f97316' },
+  { name: 'Zależność',          color: '#3b82f6' },
+  { name: 'Zasoby',             color: '#8b5cf6' },
+  { name: 'Komunikacja',        color: '#10b981' },
+]
+
 export const DEFAULT_RISK_CATEGORIES = [
   { name: 'Techniczne',      color: '#3b82f6' },
   { name: 'Finansowe',       color: '#f59e0b' },
@@ -106,4 +143,8 @@ export interface ProjectFull {
   risks: Risk[]
   riskCategories: RiskCategory[]
   riskTaskLinks: RiskTaskLink[]
+  issues: Issue[]
+  issueCategories: IssueCategory[]
+  issueTaskLinks: IssueTaskLink[]
+  issueRiskLinks: IssueRiskLink[]
 }

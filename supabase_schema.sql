@@ -204,3 +204,74 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create policy "public access" on schedule_data for all using (true) with check (true);
 exception when duplicate_object then null; end $$;
+
+-- ── Issue Categories ────────────────────────────────────────
+create table if not exists issue_categories (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  name text not null,
+  color text not null default '#6b7280',
+  "order" int not null default 0
+);
+
+-- ── Issues ──────────────────────────────────────────────────
+create table if not exists issues (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  title text not null,
+  description text,
+  category_id uuid references issue_categories(id) on delete set null,
+  status text not null default 'open' check (status in ('open','in_progress','resolved','closed')),
+  priority text check (priority in ('critical','high','medium','low')),
+  owner_id uuid references stakeholders(id) on delete set null,
+  deadline date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- ── Issue ↔ Task links ──────────────────────────────────────
+create table if not exists issue_task_links (
+  issue_id uuid not null references issues(id) on delete cascade,
+  task_id uuid not null references tasks(id) on delete cascade,
+  primary key (issue_id, task_id)
+);
+
+-- ── Issue ↔ Risk links ──────────────────────────────────────
+create table if not exists issue_risk_links (
+  issue_id uuid not null references issues(id) on delete cascade,
+  risk_id uuid not null references risks(id) on delete cascade,
+  primary key (issue_id, risk_id)
+);
+
+-- ── Issue History ────────────────────────────────────────────
+create table if not exists issue_history (
+  id uuid primary key default gen_random_uuid(),
+  issue_id uuid not null references issues(id) on delete cascade,
+  changed_at timestamptz not null default now(),
+  field text not null,
+  old_value text,
+  new_value text
+);
+
+-- ── RLS for issue tables ─────────────────────────────────────
+alter table issue_categories enable row level security;
+alter table issues enable row level security;
+alter table issue_task_links enable row level security;
+alter table issue_risk_links enable row level security;
+alter table issue_history enable row level security;
+
+do $$ begin
+  create policy "public access" on issue_categories for all using (true) with check (true);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "public access" on issues for all using (true) with check (true);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "public access" on issue_task_links for all using (true) with check (true);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "public access" on issue_risk_links for all using (true) with check (true);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "public access" on issue_history for all using (true) with check (true);
+exception when duplicate_object then null; end $$;

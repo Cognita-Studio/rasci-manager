@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, LayoutGrid, Settings, Download, AlertTriangle, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, LayoutGrid, Settings, Download, AlertTriangle, ShieldAlert, FileWarning } from 'lucide-react'
 import { loadProjectFull } from '../lib/db'
 import type { ProjectFull } from '../types'
 import Spinner from '../components/ui/Spinner'
 import DashboardView from '../components/dashboard/DashboardView'
 import RiskDashboardView from '../components/dashboard/RiskDashboardView'
+import IssuesDashboardView from '../components/dashboard/IssuesDashboardView'
 import EditorView from '../components/project/EditorView'
 import ValidationModal from '../components/dashboard/ValidationModal'
 import SettingsMenu from '../components/ui/SettingsMenu'
@@ -13,7 +14,7 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { useT } from '../lib/i18n'
 
-type Tab = 'dashboard' | 'risks' | 'editor'
+type Tab = 'dashboard' | 'risks' | 'issues' | 'editor'
 
 export default function ProjectPage() {
   const { workspaceId, projectId } = useParams<{ workspaceId: string; projectId: string }>()
@@ -117,6 +118,7 @@ export default function ProjectPage() {
           {([
             ['dashboard', t.dashboard, LayoutGrid],
             ['risks', t.risks, ShieldAlert],
+            ['issues', t.issues, FileWarning],
             ['editor', t.editor, Settings],
           ] as const).map(([id, label, Icon]) => (
             <button
@@ -135,6 +137,7 @@ export default function ProjectPage() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-2 sm:px-4 py-6">
         {tab === 'dashboard' && <DashboardView ref={dashboardRef} data={data} />}
         {tab === 'risks' && <RiskDashboardView data={data} />}
+        {tab === 'issues' && <IssuesDashboardView data={data} />}
         {tab === 'editor' && <EditorView data={data} onReload={() => load(true)} />}
       </main>
 

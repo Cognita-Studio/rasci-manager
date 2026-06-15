@@ -3,8 +3,9 @@ import type {
   Workspace, Project, TaskGroup, Task, Stakeholder,
   StakeholderGroup, ProjectStakeholder, ProjectFull,
   RiskCategory, Risk, RiskHistory,
+  IssueCategory, Issue, IssueHistory,
 } from '../types'
-import { DEFAULT_RISK_CATEGORIES as DEFAULTS } from '../types'
+import { DEFAULT_RISK_CATEGORIES as RISK_DEFAULTS, DEFAULT_ISSUE_CATEGORIES as ISSUE_DEFAULTS } from '../types'
 
 // ── Workspace ──────────────────────────────────────────────
 export async function getOrCreateWorkspace(id: string): Promise<Workspace> {
@@ -44,7 +45,7 @@ export async function deleteProject(id: string): Promise<void> {
 
 // ── Full project load ──────────────────────────────────────
 export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
-  const [projRes, tgRes, sgRes, mbrRes, assignRes, riskRes, rcRes, rtlRes] = await Promise.all([
+  const [projRes, tgRes, sgRes, mbrRes, assignRes, riskRes, rcRes, rtlRes, issueRes, icRes, itlRes, irlRes] = await Promise.all([
     supabase.from('projects').select('*').eq('id', projectId).single(),
     supabase.from('task_groups').select('*, tasks(*)').eq('project_id', projectId).order('order'),
     supabase.from('stakeholder_groups').select('*').eq('project_id', projectId).order('order'),
@@ -55,6 +56,10 @@ export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
     supabase.from('risks').select('*').eq('project_id', projectId).order('created_at'),
     supabase.from('risk_categories').select('*').eq('project_id', projectId).order('order'),
     supabase.from('risk_task_links').select('risk_id,task_id'),
+    supabase.from('issues').select('*').eq('project_id', projectId).order('created_at'),
+    supabase.from('issue_categories').select('*').eq('project_id', projectId).order('order'),
+    supabase.from('issue_task_links').select('issue_id,task_id'),
+    supabase.from('issue_risk_links').select('issue_id,risk_id'),
   ])
   if (projRes.error) throw projRes.error
 
@@ -66,30 +71,26 @@ export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
     id: string; stakeholder_id: string; group_id: string | null; project_role: string | null; order: number
     stakeholder: { id: string; name: string; email: string | null; phone: string | null; position: string | null }
   }) => ({
-    membershipId: m.id,
-    stakeholderId: m.stakeholder_id,
-    groupId: m.group_id,
-    projectRole: m.project_role,
-    order: m.order,
-    name: m.stakeholder.name,
-    email: m.stakeholder.email,
-    phone: m.stakeholder.phone,
-    position: m.stakeholder.position,
+    membershipId: m.id, stakeholderId: m.stakeholder_id,
+    groupId: m.group_id, projectRole: m.project_role, order: m.order,
+    name: m.stakeholder.name, email: m.stakeholder.email,
+    phone: m.stakeholder.phone, position: m.stakeholder.position,
   }))
 
-  // Filter risk_task_links to only those relevant to this project's risks
   const projectRiskIds = new Set((riskRes.data ?? []).map((r: Risk) => r.id))
   const riskTaskLinks = (rtlRes.data ?? []).filter((l: { risk_id: string }) => projectRiskIds.has(l.risk_id))
 
+  const projectIssueIds = new Set((issueRes.data ?? []).map((i: Issue) => i.id))
+  const issueTaskLinks = (itlRes.data ?? []).filter((l: { issue_id: string }) => projectIssueIds.has(l.issue_id))
+  const issueRiskLinks = (irlRes.data ?? []).filter((l: { issue_id: string }) => projectIssueIds.has(l.issue_id))
+
   return {
-    project: projRes.data,
-    taskGroups,
-    stakeholderGroups: sgRes.data ?? [],
-    projectStakeholders,
+    project: projRes.data, taskGroups,
+    stakeholderGroups: sgRes.data ?? [], projectStakeholders,
     assignments: assignRes.data ?? [],
-    risks: riskRes.data ?? [],
-    riskCategories: rcRes.data ?? [],
-    riskTaskLinks,
+    risks: riskRes.data ?? [], riskCategories: rcRes.data ?? [], riskTaskLinks,
+    issues: issueRes.data ?? [], issueCategories: icRes.data ?? [],
+    issueTaskLinks, issueRiskLinks,
   }
 }
 
@@ -203,7 +204,7 @@ export async function upsertAssignment(
 
 // ── Risk Categories ────────────────────────────────────────
 export async function createDefaultRiskCategories(projectId: string): Promise<void> {
-  const rows = DEFAULTS.map((c, i) => ({ project_id: projectId, name: c.name, color: c.color, order: i }))
+  const rows = RISK_DEFAULTS.map((c, i) => ({ project_id: projectId, name: c.name, color: c.color, order: i }))
   await supabase.from('risk_categories').insert(rows)
 }
 
@@ -266,5 +267,63 @@ export async function setRiskTaskLinks(riskId: string, taskIds: string[]): Promi
 export async function loadRiskHistory(riskId: string): Promise<RiskHistory[]> {
   const { data, error } = await supabase.from('risk_history').select('*')
     .eq('risk_id', riskId).order('changed_at', { ascending: false })
+  if (error) throw error; return data ?? []
+}
+
+// ── Issue Categories ────────────────────────────────────────
+export async function createDefaultIssueCategories(projectId: string): Promise<void> {
+  await supabase.from('issue_categories').insert(
+    ISSUE_DEFAULTS.map((c, i) => ({ project_id: projectId, ...c, order: i }))
+  )
+}
+export async function createIssueCategory(projectId: string, name: string, color: string, order: number): Promise<IssueCategory> {
+  const { data, error } = await supabase.from('issue_categories')
+    .insert({ project_id: projectId, name, color, order }).select().single()
+  if (error) throw error; return data
+}
+export async function updateIssueCategory(id: string, patch: Partial<IssueCategory>): Promise<void> {
+  const { error } = await supabase.from('issue_categories').update(patch).eq('id', id)
+  if (error) throw error
+}
+export async function deleteIssueCategory(id: string): Promise<void> {
+  const { error } = await supabase.from('issue_categories').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ── Issues ──────────────────────────────────────────────────
+type IssuePatch = Omit<Issue, 'id' | 'project_id' | 'created_at' | 'updated_at'>
+
+export async function createIssue(projectId: string, patch: Partial<IssuePatch>): Promise<Issue> {
+  const { data, error } = await supabase.from('issues')
+    .insert({ project_id: projectId, ...patch, updated_at: new Date().toISOString() }).select().single()
+  if (error) throw error; return data
+}
+export async function updateIssue(
+  id: string,
+  patch: Partial<IssuePatch>,
+  historyEntries: { field: string; old_value: string | null; new_value: string | null }[]
+): Promise<void> {
+  const { error } = await supabase.from('issues').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id)
+  if (error) throw error
+  if (historyEntries.length > 0)
+    await supabase.from('issue_history').insert(historyEntries.map(h => ({ issue_id: id, ...h })))
+}
+export async function deleteIssue(id: string): Promise<void> {
+  const { error } = await supabase.from('issues').delete().eq('id', id)
+  if (error) throw error
+}
+export async function setIssueTaskLinks(issueId: string, taskIds: string[]): Promise<void> {
+  await supabase.from('issue_task_links').delete().eq('issue_id', issueId)
+  if (taskIds.length > 0)
+    await supabase.from('issue_task_links').insert(taskIds.map(task_id => ({ issue_id: issueId, task_id })))
+}
+export async function setIssueRiskLinks(issueId: string, riskIds: string[]): Promise<void> {
+  await supabase.from('issue_risk_links').delete().eq('issue_id', issueId)
+  if (riskIds.length > 0)
+    await supabase.from('issue_risk_links').insert(riskIds.map(risk_id => ({ issue_id: issueId, risk_id })))
+}
+export async function loadIssueHistory(issueId: string): Promise<IssueHistory[]> {
+  const { data, error } = await supabase.from('issue_history')
+    .select('*').eq('issue_id', issueId).order('changed_at', { ascending: false })
   if (error) throw error; return data ?? []
 }

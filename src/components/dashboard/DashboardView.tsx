@@ -1,9 +1,9 @@
 import { forwardRef, useState, useMemo } from 'react'
 import type { ProjectFull, Priority, TaskStatus, Task } from '../../types'
-import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_LABELS, RISK_STATUS_COLORS } from '../../types'
+import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_LABELS, RISK_STATUS_COLORS, ISSUE_STATUS_LABELS, ISSUE_STATUS_COLORS } from '../../types'
 import RoleBadge from '../ui/RoleBadge'
 import type { RasciRole } from '../../types'
-import { ChevronDown, ChevronRight, Filter, X, ShieldAlert } from 'lucide-react'
+import { ChevronDown, ChevronRight, Filter, X, ShieldAlert, FileWarning } from 'lucide-react'
 import { useT } from '../../lib/i18n'
 
 interface Filters {
@@ -72,6 +72,15 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
     }
     return m
   }, [data.risks, data.riskTaskLinks])
+
+  const issuesForTask = useMemo(() => {
+    const m: Record<string, typeof data.issues> = {}
+    for (const link of data.issueTaskLinks) {
+      const issue = data.issues.find(i => i.id === link.issue_id)
+      if (issue) (m[link.task_id] ??= []).push(issue)
+    }
+    return m
+  }, [data.issues, data.issueTaskLinks])
 
   return (
     <div>
@@ -190,6 +199,7 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                     </tr>
                     {!isCollapsed && visibleTasks.map((task, ti) => {
                       const taskRisks = risksForTask[task.id] ?? []
+                      const taskIssues = issuesForTask[task.id] ?? []
                       const isTaskExpanded = expandedTasks.has(task.id)
                       const rowBg = ti % 2 === 1
                         ? 'color-mix(in srgb, var(--color-bg-card) 90%, var(--color-bg-page))'
@@ -215,6 +225,20 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                                   >
                                     <ShieldAlert size={10} />
                                     {taskRisks.length}
+                                  </button>
+                                )}
+                                {taskIssues.length > 0 && (
+                                  <button
+                                    onClick={() => toggleTask(task.id)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors flex-shrink-0"
+                                    style={{
+                                      background: isTaskExpanded ? '#f97316' : 'rgb(249 115 22 / 15%)',
+                                      color: isTaskExpanded ? 'white' : '#f97316',
+                                    }}
+                                    title={t.issues}
+                                  >
+                                    <FileWarning size={10} />
+                                    {taskIssues.length}
                                   </button>
                                 )}
                               </div>
@@ -269,6 +293,25 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                               </td>
                             </tr>
                           )}
+                          {isTaskExpanded && taskIssues.length > 0 && (
+                            <tr key={`${task.id}-issues`} style={{ borderColor: 'var(--color-border-card)' }}>
+                              <td colSpan={4 + allStakeholders.length} className="px-4 py-2"
+                                style={{ backgroundColor: 'color-mix(in srgb, #f97316 6%, var(--color-bg-card))' }}>
+                                <div className="flex flex-wrap gap-2">
+                                  {taskIssues.map(issue => (
+                                    <div key={issue.id} className="flex items-center gap-1.5 text-xs rounded-lg px-2 py-1 border"
+                                      style={{ borderColor: 'rgb(249 115 22 / 25%)', backgroundColor: 'var(--color-bg-card)' }}>
+                                      <FileWarning size={12} className="text-orange-400 flex-shrink-0" />
+                                      <span className="font-medium" style={{ color: 'var(--color-text-body)' }}>{issue.title}</span>
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ISSUE_STATUS_COLORS[issue.status]}`}>
+                                        {ISSUE_STATUS_LABELS[issue.status]}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                         </>
                       )
                     })}
@@ -312,6 +355,7 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                 {visibleTasks.map(task => {
                   const taskAssigns = data.assignments.filter(a => a.task_id === task.id)
                   const taskRisks = risksForTask[task.id] ?? []
+                  const taskIssues = issuesForTask[task.id] ?? []
                   return (
                     <div key={task.id} className="card p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -366,6 +410,23 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                                 <span className="flex-1 truncate" style={{ color: 'var(--color-text-body)' }}>{risk.title}</span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${RISK_STATUS_COLORS[risk.status]}`}>
                                   {RISK_STATUS_LABELS[risk.status]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {taskIssues.length > 0 && (
+                        <div className="border-t pt-3 mt-1" style={{ borderColor: 'var(--color-border-card)' }}>
+                          <div className="flex items-center gap-1 mb-2 text-[11px] font-semibold opacity-60" style={{ color: 'var(--color-text-body)' }}>
+                            <FileWarning size={12} /> {t.issues}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            {taskIssues.map(issue => (
+                              <div key={issue.id} className="flex items-center gap-2 text-xs">
+                                <span className="flex-1 truncate" style={{ color: 'var(--color-text-body)' }}>{issue.title}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${ISSUE_STATUS_COLORS[issue.status]}`}>
+                                  {ISSUE_STATUS_LABELS[issue.status]}
                                 </span>
                               </div>
                             ))}
