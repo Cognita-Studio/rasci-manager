@@ -8,10 +8,12 @@ import {
 } from '../../lib/db'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
+import { useT } from '../../lib/i18n'
 
 interface Props { data: ProjectFull; onReload: () => void }
 
 export default function StakeholdersTab({ data, onReload }: Props) {
+  const { t } = useT()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [groupModal, setGroupModal] = useState<{ mode: 'create' | 'edit'; group?: StakeholderGroup } | null>(null)
   const [memberModal, setMemberModal] = useState<{
@@ -106,20 +108,20 @@ export default function StakeholdersTab({ data, onReload }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800">Interesariusze projektu</h2>
+        <h2 className="text-lg font-semibold text-gray-800">{t.projectStakeholders}</h2>
         <div className="flex gap-2">
           <button onClick={() => openAddModal()} className="btn-secondary text-sm">
-            <UserPlus size={15} /> Dodaj z bazy
+            <UserPlus size={15} /> {t.addStakeholder}
           </button>
           <button onClick={() => setGroupModal({ mode: 'create' })} className="btn-primary text-sm">
-            <Plus size={15} /> Nowa grupa
+            <Plus size={15} /> {t.newGroup}
           </button>
         </div>
       </div>
 
       {data.stakeholderGroups.length === 0 && data.projectStakeholders.length === 0 && (
         <div className="card p-10 text-center text-gray-400">
-          Brak interesariuszy. Dodaj grupę i przypisz osoby z globalnej bazy.
+          {t.noStakeholders}
         </div>
       )}
 
@@ -129,7 +131,7 @@ export default function StakeholdersTab({ data, onReload }: Props) {
             onClick={() => toggleGroup(group.id)}>
             {collapsed.has(group.id) ? <ChevronRight size={16} className="text-purple-500" /> : <ChevronDown size={16} className="text-purple-500" />}
             <span className="font-semibold text-purple-800 flex-1">{group.name}</span>
-            <span className="text-xs text-purple-400">{membersByGroup(group.id).length} osób</span>
+            <span className="text-xs text-purple-400">{t.people_count(membersByGroup(group.id).length)}</span>
             <button onClick={e => { e.stopPropagation(); setGName(group.name); setGroupModal({ mode: 'edit', group }) }}
               className="btn-ghost p-1 text-gray-500"><Pencil size={14} /></button>
             <button onClick={e => { e.stopPropagation(); removeGroup(group) }}
@@ -144,7 +146,7 @@ export default function StakeholdersTab({ data, onReload }: Props) {
               ))}
               <div className="px-4 py-2.5">
                 <button onClick={() => openAddModal(group.id)} className="btn-ghost text-xs text-purple-600">
-                  <Plus size={13} /> Dodaj do grupy
+                  <Plus size={13} /> {t.addToGroup}
                 </button>
               </div>
             </div>
@@ -155,7 +157,7 @@ export default function StakeholdersTab({ data, onReload }: Props) {
       {ungrouped.length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bez grupy</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.withoutGroup}</span>
           </div>
           {ungrouped.map(s => (
             <MemberRow key={s.membershipId} s={s}
@@ -167,17 +169,17 @@ export default function StakeholdersTab({ data, onReload }: Props) {
 
       {/* Group modal */}
       {groupModal && (
-        <Modal title={groupModal.mode === 'create' ? 'Nowa grupa' : 'Edytuj grupę'} onClose={() => setGroupModal(null)} size="sm">
+        <Modal title={groupModal.mode === 'create' ? t.newStakeholderGroup : t.editStakeholderGroup} onClose={() => setGroupModal(null)} size="sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa grupy *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t.groupName} *</label>
               <input className="input" value={gName} onChange={e => setGName(e.target.value)} autoFocus
                 onKeyDown={e => e.key === 'Enter' && saveGroup()} />
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setGroupModal(null)} className="btn-secondary">Anuluj</button>
+              <button onClick={() => setGroupModal(null)} className="btn-secondary">{t.cancel}</button>
               <button onClick={saveGroup} disabled={!gName.trim() || saving} className="btn-primary">
-                {saving ? <Spinner size={15} /> : null} Zapisz
+                {saving ? <Spinner size={15} /> : null} {t.save}
               </button>
             </div>
           </div>
@@ -186,7 +188,7 @@ export default function StakeholdersTab({ data, onReload }: Props) {
 
       {/* Add/edit member modal */}
       {memberModal && (
-        <Modal title={memberModal.mode === 'add' ? 'Dodaj interesariusza' : 'Edytuj członkostwo'}
+        <Modal title={memberModal.mode === 'add' ? t.addStakeholder : t.editMembership}
           onClose={() => setMemberModal(null)} size="md">
           <div className="space-y-4">
             {memberModal.mode === 'add' && (
@@ -194,23 +196,23 @@ export default function StakeholdersTab({ data, onReload }: Props) {
                 <div className="flex gap-2 border-b border-gray-100 pb-3">
                   <button onClick={() => setCreating(false)}
                     className={`text-sm px-3 py-1 rounded-lg ${!creating ? 'btn-primary' : 'btn-ghost'}`}>
-                    Z bazy
+                    {t.addFromDirectory}
                   </button>
                   <button onClick={() => setCreating(true)}
                     className={`text-sm px-3 py-1 rounded-lg ${creating ? 'btn-primary' : 'btn-ghost'}`}>
-                    Utwórz nową osobę
+                    {t.createNewPerson}
                   </button>
                 </div>
                 {!creating ? (
                   <div>
                     <div className="relative mb-2">
                       <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input className="input pl-8" placeholder="Szukaj…" value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+                      <input className="input pl-8" placeholder={t.searchPlaceholder} value={search} onChange={e => setSearch(e.target.value)} autoFocus />
                     </div>
                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
                       {filtered.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-4">
-                          {search ? 'Brak wyników' : 'Wszyscy stakeholderzy są już w projekcie'}
+                          {search ? t.noSearchResults : t.allStakeholdersAdded}
                         </p>
                       ) : filtered.map(s => (
                         <button key={s.id} onClick={() => setSelectedId(s.id)}
@@ -230,16 +232,16 @@ export default function StakeholdersTab({ data, onReload }: Props) {
                 ) : (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Imię i nazwisko *</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{t.fullName} *</label>
                       <input className="input" value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Stanowisko</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t.position}</label>
                         <input className="input" value={newPos} onChange={e => setNewPos(e.target.value)} />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">E-mail</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t.email}</label>
                         <input className="input" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
                       </div>
                     </div>
@@ -249,25 +251,25 @@ export default function StakeholdersTab({ data, onReload }: Props) {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grupa w projekcie</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.stakeholderProjectGroup}</label>
                 <select className="input" value={memberGroupId} onChange={e => setMemberGroupId(e.target.value)}>
-                  <option value="">— bez grupy —</option>
+                  <option value="">{t.noGroup}</option>
                   {data.stakeholderGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rola w projekcie</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.projectRole}</label>
                 <input className="input" value={memberRole} onChange={e => setMemberRole(e.target.value)}
-                  placeholder="np. Sponsor" />
+                  placeholder={t.projectRolePlaceholder} />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setMemberModal(null)} className="btn-secondary">Anuluj</button>
+              <button onClick={() => setMemberModal(null)} className="btn-secondary">{t.cancel}</button>
               <button
                 onClick={saveMember}
                 disabled={saving || (memberModal.mode === 'add' && !creating && !selectedId) || (creating && !newName.trim())}
                 className="btn-primary">
-                {saving ? <Spinner size={15} /> : null} Dodaj
+                {saving ? <Spinner size={15} /> : null} {t.addMember}
               </button>
             </div>
           </div>

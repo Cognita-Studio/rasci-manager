@@ -37,8 +37,8 @@ body {
   .header-bg { background-color: var(--color-bg-header); border-color: var(--color-border-card); }
   .theme-tab-active { color: white; background-color: var(--color-primary); }
   .theme-header-text { color: var(--color-primary); }
-  .theme-group-bg { background-color: var(--color-primary-light); }
-  .theme-group-text { color: var(--color-primary-dark); }
+  .theme-group-bg { background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-card)); }
+  .theme-group-text { color: var(--color-primary); }
   .theme-group-border { border-color: color-mix(in srgb, var(--color-primary) 20%, transparent); }
 }
 

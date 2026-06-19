@@ -11,16 +11,16 @@ export const THEMES: {
   {
     id: 'night',
     label: '🌑 Noc',
-    primary: '#818cf8', light: '#312e81', dark: '#a5b4fc',
-    bgPage: '#0f172a', bgHeader: '#1e293b', bgCard: '#1e293b',
-    textBody: '#e2e8f0', borderCard: '#334155',
+    primary: '#a5b4fc', light: '#1e1b4b', dark: '#c7d2fe',
+    bgPage: '#0a0f1e', bgHeader: '#0f172a', bgCard: '#1e293b',
+    textBody: '#e2e8f0', borderCard: '#475569',
   },
   {
     id: 'slate',
     label: '🌒 Grafit',
-    primary: '#60a5fa', light: '#1e3a5f', dark: '#93c5fd',
-    bgPage: '#1e293b', bgHeader: '#0f172a', bgCard: '#263548',
-    textBody: '#e2e8f0', borderCard: '#334155',
+    primary: '#60a5fa', light: '#172554', dark: '#93c5fd',
+    bgPage: '#0f1f35', bgHeader: '#0a1628', bgCard: '#1a3050',
+    textBody: '#e2e8f0', borderCard: '#2d4a6e',
   },
   {
     id: 'indigo',

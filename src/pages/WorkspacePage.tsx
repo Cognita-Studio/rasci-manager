@@ -71,7 +71,7 @@ export default function WorkspacePage() {
           <div className="flex gap-2 items-center flex-wrap justify-end">
             <button onClick={() => setShowDirectory(true)} className="btn-secondary text-xs gap-1.5">
               <Users size={14} />
-              <span className="hidden sm:inline">Stakeholderzy</span>
+              <span className="hidden sm:inline">{t.stakeholderDirectory}</span>
             </button>
             <a href="/schedule/" className="btn-secondary text-xs gap-1.5">
               <CalendarDays size={14} />

@@ -30,26 +30,28 @@ export default function SettingsMenu() {
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 w-52 card shadow-lg py-3 z-50">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 mb-2">{t.language}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide px-4 mb-2 opacity-50" style={{ color: 'var(--color-text-body)' }}>{t.language}</p>
           {LANGS.map(l => (
             <button
               key={l.id}
               onClick={() => setLang(l.id)}
-              className={`w-full text-left px-4 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between ${lang === l.id ? 'font-semibold' : ''}`}
+              className={`w-full text-left px-4 py-1.5 text-sm flex items-center justify-between hover:bg-black/10 ${lang === l.id ? 'font-semibold' : ''}`}
+              style={{ color: 'var(--color-text-body)' }}
             >
               {l.label}
               {lang === l.id && <span className="text-xs" style={{ color: 'var(--color-primary)' }}>✓</span>}
             </button>
           ))}
-          <hr className="my-2 border-gray-100" />
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 mb-2">{t.theme}</p>
+          <hr className="my-2" style={{ borderColor: 'var(--color-border-card)' }} />
+          <p className="text-xs font-semibold uppercase tracking-wide px-4 mb-2 opacity-50" style={{ color: 'var(--color-text-body)' }}>{t.theme}</p>
           {THEMES.map(th => (
             <button
               key={th.id}
               onClick={() => setTheme(th.id)}
-              className={`w-full text-left px-4 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between ${themeId === th.id ? 'font-semibold' : ''}`}
+              className={`w-full text-left px-4 py-1.5 text-sm flex items-center justify-between hover:bg-black/10 ${themeId === th.id ? 'font-semibold' : ''}`}
+              style={{ color: 'var(--color-text-body)' }}
             >
-              {th.label}
+              {t[`theme${th.id.charAt(0).toUpperCase()}${th.id.slice(1)}` as keyof typeof t] as string}
               {themeId === th.id && <span className="text-xs" style={{ color: 'var(--color-primary)' }}>✓</span>}
             </button>
           ))}
