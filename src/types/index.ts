@@ -82,6 +82,17 @@ export interface Risk {
   review_deadline: string | null; created_at: string; updated_at: string
 }
 
+export interface TaskStep {
+  id: string; task_id: string; name: string; status: TaskStatus; order: number
+}
+
+export function deriveTaskStatus(steps: TaskStep[]): TaskStatus {
+  if (steps.every(s => s.status === 'completed')) return 'completed'
+  if (steps.some(s => s.status === 'blocked')) return 'blocked'
+  if (steps.some(s => s.status === 'in_progress' || s.status === 'completed')) return 'in_progress'
+  return 'not_started'
+}
+
 export interface RiskTaskLink { risk_id: string; task_id: string }
 
 export interface RiskHistory {
@@ -137,6 +148,7 @@ export const DEFAULT_RISK_CATEGORIES = [
 export interface ProjectFull {
   project: Project
   taskGroups: (TaskGroup & { tasks: Task[] })[]
+  steps: TaskStep[]
   stakeholderGroups: StakeholderGroup[]
   projectStakeholders: ProjectStakeholder[]
   assignments: RasciAssignment[]

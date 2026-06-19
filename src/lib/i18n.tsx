@@ -211,6 +211,15 @@ const translations = {
     issueCatName: 'Nazwa *',
     issueCatColor: 'Kolor',
     // Status & priority labels (used in translated maps)
+    // Task steps
+    steps: 'Kroki',
+    stepAdd: 'Dodaj krok',
+    stepEdit: 'Edytuj krok',
+    stepName: 'Nazwa kroku *',
+    stepStatus: 'Status',
+    stepNone: 'Brak kroków. Dodaj pierwszy krok.',
+    stepDeleteConfirm: (name: string) => `Usuń krok „${name}"?`,
+    stepProgress: (done: number, total: number) => `${done}/${total}`,
     riskStatusOpen: 'Otwarte',
     riskStatusMonitoring: 'Obserwowane',
     riskStatusMitigated: 'Zmitygowane',
@@ -428,6 +437,15 @@ const translations = {
     issueCatName: 'Name *',
     issueCatColor: 'Color',
     // Status & priority labels (used in translated maps)
+    // Task steps
+    steps: 'Steps',
+    stepAdd: 'Add step',
+    stepEdit: 'Edit step',
+    stepName: 'Step name *',
+    stepStatus: 'Status',
+    stepNone: 'No steps. Add the first step.',
+    stepDeleteConfirm: (name: string) => `Delete step "${name}"?`,
+    stepProgress: (done: number, total: number) => `${done}/${total}`,
     riskStatusOpen: 'Open',
     riskStatusMonitoring: 'Monitoring',
     riskStatusMitigated: 'Mitigated',
@@ -645,6 +663,15 @@ const translations = {
     issueCatName: 'Navn *',
     issueCatColor: 'Farge',
     // Status & priority labels (used in translated maps)
+    // Task steps
+    steps: 'Steg',
+    stepAdd: 'Legg til steg',
+    stepEdit: 'Rediger steg',
+    stepName: 'Stegnavn *',
+    stepStatus: 'Status',
+    stepNone: 'Ingen steg. Legg til det første steget.',
+    stepDeleteConfirm: (name: string) => `Slett steg «${name}»?`,
+    stepProgress: (done: number, total: number) => `${done}/${total}`,
     riskStatusOpen: 'Åpen',
     riskStatusMonitoring: 'Overvåkes',
     riskStatusMitigated: 'Håndtert',

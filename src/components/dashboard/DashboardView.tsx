@@ -1,11 +1,13 @@
 import { forwardRef, useState, useMemo } from 'react'
-import type { ProjectFull, Priority, TaskStatus, Task } from '../../types'
-import { PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_COLORS, ISSUE_STATUS_COLORS } from '../../types'
-import { useTranslatedLabels } from '../../lib/i18n'
+import type { ProjectFull, Priority, TaskStatus, Task, TaskStep } from '../../types'
+import { PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_COLORS, ISSUE_STATUS_COLORS, deriveTaskStatus } from '../../types'
+import { useT, useTranslatedLabels } from '../../lib/i18n'
 import RoleBadge from '../ui/RoleBadge'
 import type { RasciRole } from '../../types'
-import { ChevronDown, ChevronRight, Filter, X, ShieldAlert, FileWarning } from 'lucide-react'
-import { useT } from '../../lib/i18n'
+import { ChevronDown, ChevronRight, Filter, X, ShieldAlert, FileWarning, ListChecks, Pencil, Trash2, Plus } from 'lucide-react'
+import { updateStep, deleteStep, createStep, syncTaskStatusFromSteps } from '../../lib/db'
+import Modal from '../ui/Modal'
+import Spinner from '../ui/Spinner'
 
 interface Filters {
   priority: Priority | ''
@@ -13,11 +15,54 @@ interface Filters {
   deadline: 'overdue' | 'this_week' | 'this_month' | ''
 }
 
-interface Props { data: ProjectFull }
+interface Props { data: ProjectFull; onReload: () => void }
 
-const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
+const DashboardView = forwardRef<HTMLDivElement, Props>(({ data, onReload }, ref) => {
   const { t } = useT()
   const { PRIORITY_LABELS, STATUS_LABELS, RISK_STATUS_LABELS, ISSUE_STATUS_LABELS } = useTranslatedLabels()
+  const [stepModal, setStepModal] = useState<{ mode: 'create' | 'edit'; taskId: string; step?: TaskStep } | null>(null)
+  const [sName, setSName] = useState('')
+  const [sStatus, setSStatus] = useState<TaskStatus>('not_started')
+  const [stepSaving, setStepSaving] = useState(false)
+
+  const STATUS_KEYS: TaskStatus[] = ['not_started', 'in_progress', 'blocked', 'completed']
+
+  const stepsForTask = useMemo(() => {
+    const m: Record<string, TaskStep[]> = {}
+    for (const s of data.steps) (m[s.task_id] ??= []).push(s)
+    return m
+  }, [data.steps])
+
+  const openStepCreate = (taskId: string) => {
+    setSName(''); setSStatus('not_started'); setStepModal({ mode: 'create', taskId })
+  }
+  const openStepEdit = (step: TaskStep) => {
+    setSName(step.name); setSStatus(step.status); setStepModal({ mode: 'edit', taskId: step.task_id, step })
+  }
+  const saveStep = async () => {
+    if (!sName.trim() || !stepModal) return
+    setStepSaving(true)
+    try {
+      const taskSteps = stepsForTask[stepModal.taskId] ?? []
+      if (stepModal.mode === 'create') {
+        await createStep(stepModal.taskId, sName.trim(), taskSteps.length)
+        const newSteps = [...taskSteps, { status: sStatus } as TaskStep]
+        await syncTaskStatusFromSteps(stepModal.taskId, deriveTaskStatus(newSteps))
+      } else if (stepModal.step) {
+        await updateStep(stepModal.step.id, { name: sName.trim(), status: sStatus })
+        const newSteps = taskSteps.map(s => s.id === stepModal.step!.id ? { ...s, status: sStatus } : s)
+        await syncTaskStatusFromSteps(stepModal.taskId, deriveTaskStatus(newSteps))
+      }
+      onReload(); setStepModal(null)
+    } finally { setStepSaving(false) }
+  }
+  const removeStep = async (step: TaskStep) => {
+    if (!confirm(t.stepDeleteConfirm(step.name))) return
+    await deleteStep(step.id)
+    const remaining = (stepsForTask[step.task_id] ?? []).filter(s => s.id !== step.id)
+    if (remaining.length > 0) await syncTaskStatusFromSteps(step.task_id, deriveTaskStatus(remaining))
+    onReload()
+  }
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<Filters>({ priority: '', status: '', deadline: '' })
   const [showFilters, setShowFilters] = useState(false)
@@ -202,6 +247,9 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                     {!isCollapsed && visibleTasks.map((task, ti) => {
                       const taskRisks = risksForTask[task.id] ?? []
                       const taskIssues = issuesForTask[task.id] ?? []
+                      const taskSteps = stepsForTask[task.id] ?? []
+                      const effectiveStatus = taskSteps.length > 0 ? deriveTaskStatus(taskSteps) : task.status
+                      const stepsDone = taskSteps.filter(s => s.status === 'completed').length
                       const isTaskExpanded = expandedTasks.has(task.id)
                       const rowBg = ti % 2 === 1
                         ? 'color-mix(in srgb, var(--color-bg-card) 90%, var(--color-bg-page))'
@@ -243,14 +291,26 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                                     {taskIssues.length}
                                   </button>
                                 )}
+                                {taskSteps.length > 0 && (
+                                  <button
+                                    onClick={() => toggleTask(task.id)}
+                                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors flex-shrink-0"
+                                    style={{
+                                      background: isTaskExpanded ? '#10b981' : 'rgb(16 185 129 / 15%)',
+                                      color: isTaskExpanded ? 'white' : '#10b981',
+                                    }}
+                                    title={t.steps}
+                                  >
+                                    <ListChecks size={10} />
+                                    {t.stepProgress(stepsDone, taskSteps.length)}
+                                  </button>
+                                )}
                               </div>
                             </td>
                             <td className="px-3 py-2.5">
-                              {task.status && (
-                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[task.status]}`}>
-                                  {STATUS_LABELS[task.status]}
-                                </span>
-                              )}
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[effectiveStatus]}`}>
+                                {STATUS_LABELS[effectiveStatus]}
+                              </span>
                             </td>
                             <td className="px-3 py-2.5">
                               {task.priority && (
@@ -314,6 +374,38 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                               </td>
                             </tr>
                           )}
+                          {isTaskExpanded && taskSteps.length > 0 && (
+                            <tr key={`${task.id}-steps`} style={{ borderColor: 'var(--color-border-card)' }}>
+                              <td colSpan={4 + allStakeholders.length} className="px-4 py-2"
+                                style={{ backgroundColor: 'color-mix(in srgb, #10b981 6%, var(--color-bg-card))' }}>
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-[11px] font-semibold opacity-60 flex items-center gap-1" style={{ color: 'var(--color-text-body)' }}>
+                                    <ListChecks size={11} /> {t.steps} ({t.stepProgress(stepsDone, taskSteps.length)})
+                                  </span>
+                                  <button onClick={() => openStepCreate(task.id)} className="text-[10px] flex items-center gap-0.5 opacity-60 hover:opacity-100" style={{ color: '#10b981' }}>
+                                    <Plus size={10} /> {t.stepAdd}
+                                  </button>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  {taskSteps.map(step => (
+                                    <div key={step.id} className="flex items-center gap-2 text-xs group/step">
+                                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                        step.status === 'completed' ? 'bg-green-400' :
+                                        step.status === 'in_progress' ? 'bg-blue-400' :
+                                        step.status === 'blocked' ? 'bg-red-400' : 'bg-gray-300'
+                                      }`} />
+                                      <span className={`flex-1 ${step.status === 'completed' ? 'line-through opacity-50' : ''}`} style={{ color: 'var(--color-text-body)' }}>{step.name}</span>
+                                      <span className="text-[10px] opacity-50" style={{ color: 'var(--color-text-body)' }}>{STATUS_LABELS[step.status]}</span>
+                                      <div className="flex gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity">
+                                        <button onClick={() => openStepEdit(step)} className="btn-ghost p-0.5"><Pencil size={10} /></button>
+                                        <button onClick={() => removeStep(step)} className="btn-ghost p-0.5 hover:text-red-600"><Trash2 size={10} /></button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                         </>
                       )
                     })}
@@ -358,6 +450,9 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                   const taskAssigns = data.assignments.filter(a => a.task_id === task.id)
                   const taskRisks = risksForTask[task.id] ?? []
                   const taskIssues = issuesForTask[task.id] ?? []
+                  const taskSteps = stepsForTask[task.id] ?? []
+                  const effectiveStatus = taskSteps.length > 0 ? deriveTaskStatus(taskSteps) : task.status
+                  const stepsDone = taskSteps.filter(s => s.status === 'completed').length
                   return (
                     <div key={task.id} className="card p-4">
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -371,11 +466,9 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                         </div>
                       </div>
                       <div className="flex gap-2 mb-3 flex-wrap">
-                        {task.status && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[task.status]}`}>
-                            {STATUS_LABELS[task.status]}
-                          </span>
-                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[effectiveStatus]}`}>
+                          {STATUS_LABELS[effectiveStatus]}
+                        </span>
                         {task.deadline && (
                           <span className="text-xs opacity-50" style={{ color: 'var(--color-text-body)' }}>
                             📅 {new Date(task.deadline).toLocaleDateString()}
@@ -435,6 +528,33 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
                           </div>
                         </div>
                       )}
+                      {taskSteps.length > 0 && (
+                        <div className="border-t pt-3 mt-1" style={{ borderColor: 'var(--color-border-card)' }}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="flex items-center gap-1 text-[11px] font-semibold opacity-60" style={{ color: 'var(--color-text-body)' }}>
+                              <ListChecks size={12} /> {t.steps} ({t.stepProgress(stepsDone, taskSteps.length)})
+                            </span>
+                            <button onClick={() => openStepCreate(task.id)} className="text-[10px]" style={{ color: '#10b981' }}>
+                              + {t.stepAdd}
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            {taskSteps.map(step => (
+                              <div key={step.id} className="flex items-center gap-2 text-xs" onClick={() => openStepEdit(step)}>
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  step.status === 'completed' ? 'bg-green-400' :
+                                  step.status === 'in_progress' ? 'bg-blue-400' :
+                                  step.status === 'blocked' ? 'bg-red-400' : 'bg-gray-300'
+                                }`} />
+                                <span className={`flex-1 truncate ${step.status === 'completed' ? 'line-through opacity-50' : ''}`} style={{ color: 'var(--color-text-body)' }}>{step.name}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${STATUS_COLORS[step.status]}`}>
+                                  {STATUS_LABELS[step.status]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -443,6 +563,35 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
           )
         })}
       </div>
+
+      {stepModal && (
+        <Modal title={stepModal.mode === 'create' ? t.stepAdd : t.stepEdit} onClose={() => setStepModal(null)} size="sm">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-body)' }}>{t.stepName}</label>
+              <input className="input" value={sName} onChange={e => setSName(e.target.value)} autoFocus
+                onKeyDown={e => e.key === 'Enter' && saveStep()} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-body)' }}>{t.stepStatus}</label>
+              <select className="input" value={sStatus} onChange={e => setSStatus(e.target.value as TaskStatus)}>
+                {STATUS_KEYS.map(k => <option key={k} value={k}>{STATUS_LABELS[k]}</option>)}
+              </select>
+            </div>
+            {stepModal.mode === 'edit' && stepModal.step && (
+              <button onClick={() => removeStep(stepModal.step!)} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                <Trash2 size={12} /> {t.stepDeleteConfirm(sName)}
+              </button>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setStepModal(null)} className="btn-secondary">{t.cancel}</button>
+              <button onClick={saveStep} disabled={!sName.trim() || stepSaving} className="btn-primary">
+                {stepSaving ? <Spinner size={15} /> : null} {t.save}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 })

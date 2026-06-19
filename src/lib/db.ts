@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import type {
-  Workspace, Project, TaskGroup, Task, Stakeholder,
+  Workspace, Project, TaskGroup, Task, TaskStep, TaskStatus, Stakeholder,
   StakeholderGroup, ProjectStakeholder, ProjectFull,
   RiskCategory, Risk, RiskHistory,
   IssueCategory, Issue, IssueHistory,
@@ -45,7 +45,7 @@ export async function deleteProject(id: string): Promise<void> {
 
 // ── Full project load ──────────────────────────────────────
 export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
-  const [projRes, tgRes, sgRes, mbrRes, assignRes, riskRes, rcRes, rtlRes, issueRes, icRes, itlRes, irlRes] = await Promise.all([
+  const [projRes, tgRes, sgRes, mbrRes, assignRes, riskRes, rcRes, rtlRes, issueRes, icRes, itlRes, irlRes, stepsRes] = await Promise.all([
     supabase.from('projects').select('*').eq('id', projectId).single(),
     supabase.from('task_groups').select('*, tasks(*)').eq('project_id', projectId).order('order'),
     supabase.from('stakeholder_groups').select('*').eq('project_id', projectId).order('order'),
@@ -60,6 +60,7 @@ export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
     supabase.from('issue_categories').select('*').eq('project_id', projectId).order('order'),
     supabase.from('issue_task_links').select('issue_id,task_id'),
     supabase.from('issue_risk_links').select('issue_id,risk_id'),
+    supabase.from('task_steps').select('*').order('order'),
   ])
   if (projRes.error) throw projRes.error
 
@@ -91,7 +92,27 @@ export async function loadProjectFull(projectId: string): Promise<ProjectFull> {
     risks: riskRes.data ?? [], riskCategories: rcRes.data ?? [], riskTaskLinks,
     issues: issueRes.data ?? [], issueCategories: icRes.data ?? [],
     issueTaskLinks, issueRiskLinks,
+    steps: stepsRes.data ?? [],
   }
+}
+
+// ── Task Steps ─────────────────────────────────────────────
+export async function createStep(taskId: string, name: string, order: number): Promise<TaskStep> {
+  const { data, error } = await supabase.from('task_steps')
+    .insert({ task_id: taskId, name, status: 'not_started', order }).select().single()
+  if (error) throw error; return data
+}
+export async function updateStep(id: string, patch: Partial<Pick<TaskStep, 'name' | 'status' | 'order'>>): Promise<void> {
+  const { error } = await supabase.from('task_steps').update(patch).eq('id', id)
+  if (error) throw error
+}
+export async function deleteStep(id: string): Promise<void> {
+  const { error } = await supabase.from('task_steps').delete().eq('id', id)
+  if (error) throw error
+}
+export async function syncTaskStatusFromSteps(taskId: string, derivedStatus: TaskStatus): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ status: derivedStatus }).eq('id', taskId)
+  if (error) throw error
 }
 
 // ── Task Groups ────────────────────────────────────────────

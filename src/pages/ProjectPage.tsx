@@ -135,7 +135,7 @@ export default function ProjectPage() {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-2 sm:px-4 py-6">
-        {tab === 'dashboard' && <DashboardView ref={dashboardRef} data={data} />}
+        {tab === 'dashboard' && <DashboardView ref={dashboardRef} data={data} onReload={() => load(true)} />}
         {tab === 'risks' && <RiskDashboardView data={data} />}
         {tab === 'issues' && <IssuesDashboardView data={data} />}
         {tab === 'editor' && <EditorView data={data} onReload={() => load(true)} />}
