@@ -1,8 +1,8 @@
 import { forwardRef, useState, useMemo } from 'react'
 import type { ProjectFull, Risk, RiskStatus } from '../../types'
-import { RISK_STATUS_LABELS, RISK_STATUS_COLORS, riskScoreColor, riskScoreLabel } from '../../types'
+import { RISK_STATUS_COLORS, riskScoreColor, riskScoreLabel } from '../../types'
 import { Link2 } from 'lucide-react'
-import { useT } from '../../lib/i18n'
+import { useT, useTranslatedLabels } from '../../lib/i18n'
 
 function cellColor(score: number) {
   if (score >= 17) return 'bg-red-500'
@@ -18,6 +18,7 @@ interface Props { data: ProjectFull }
 
 const RiskDashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
   const { t } = useT()
+  const { RISK_STATUS_LABELS } = useTranslatedLabels()
   const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('')
   const [catFilter, setCatFilter] = useState('')
   const [selectedCell, setSelectedCell] = useState<{ p: number; i: number } | null>(null)

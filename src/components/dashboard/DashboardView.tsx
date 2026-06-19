@@ -1,6 +1,7 @@
 import { forwardRef, useState, useMemo } from 'react'
 import type { ProjectFull, Priority, TaskStatus, Task } from '../../types'
-import { PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_LABELS, RISK_STATUS_COLORS, ISSUE_STATUS_LABELS, ISSUE_STATUS_COLORS } from '../../types'
+import { PRIORITY_COLORS, STATUS_COLORS, riskScoreColor, RISK_STATUS_COLORS, ISSUE_STATUS_COLORS } from '../../types'
+import { useTranslatedLabels } from '../../lib/i18n'
 import RoleBadge from '../ui/RoleBadge'
 import type { RasciRole } from '../../types'
 import { ChevronDown, ChevronRight, Filter, X, ShieldAlert, FileWarning } from 'lucide-react'
@@ -16,6 +17,7 @@ interface Props { data: ProjectFull }
 
 const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
   const { t } = useT()
+  const { PRIORITY_LABELS, STATUS_LABELS, RISK_STATUS_LABELS, ISSUE_STATUS_LABELS } = useTranslatedLabels()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<Filters>({ priority: '', status: '', deadline: '' })
   const [showFilters, setShowFilters] = useState(false)
@@ -110,14 +112,14 @@ const DashboardView = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
             <select className="input w-auto text-xs py-1.5" value={filters.priority}
               onChange={e => setFilters(f => ({ ...f, priority: e.target.value as Priority | '' }))}>
               <option value="">{t.priorityAll}</option>
-              {(Object.entries(PRIORITY_LABELS) as [Priority, string][]).map(([k, v]) => (
+              {(Object.entries(PRIORITY_LABELS)).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
             <select className="input w-auto text-xs py-1.5" value={filters.status}
               onChange={e => setFilters(f => ({ ...f, status: e.target.value as TaskStatus | '' }))}>
               <option value="">{t.statusAll}</option>
-              {(Object.entries(STATUS_LABELS) as [TaskStatus, string][]).map(([k, v]) => (
+              {(Object.entries(STATUS_LABELS)).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>

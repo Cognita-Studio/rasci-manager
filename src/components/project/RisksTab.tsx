@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, History, Link2 } from 'lucide-react'
 import type { ProjectFull, Risk, RiskStatus } from '../../types'
-import { RISK_STATUS_LABELS, RISK_STATUS_COLORS, riskScoreColor, riskScoreLabel } from '../../types'
+import { RISK_STATUS_COLORS, riskScoreColor, riskScoreLabel } from '../../types'
 import { createRisk, updateRisk, deleteRisk, setRiskTaskLinks, loadRiskHistory, createDefaultRiskCategories } from '../../lib/db'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
 import type { RiskHistory } from '../../types'
-import { useT } from '../../lib/i18n'
+import { useT, useTranslatedLabels } from '../../lib/i18n'
 
 interface Props { data: ProjectFull; onReload: () => void }
 
@@ -17,6 +17,7 @@ const EMPTY_RISK = {
 
 export default function RisksTab({ data, onReload }: Props) {
   const { t } = useT()
+  const { RISK_STATUS_LABELS } = useTranslatedLabels()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; risk?: Risk } | null>(null)
   const [fields, setFields] = useState(EMPTY_RISK)

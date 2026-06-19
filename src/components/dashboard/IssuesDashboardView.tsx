@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Link2, ShieldAlert } from 'lucide-react'
 import type { ProjectFull, IssueStatus } from '../../types'
-import { ISSUE_STATUS_LABELS, ISSUE_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS } from '../../types'
-import { riskScoreColor } from '../../types'
-import { useT } from '../../lib/i18n'
+import { ISSUE_STATUS_COLORS, PRIORITY_COLORS, riskScoreColor } from '../../types'
+import { useT, useTranslatedLabels } from '../../lib/i18n'
 
 interface Props { data: ProjectFull }
 
 export default function IssuesDashboardView({ data }: Props) {
   const { t } = useT()
+  const { ISSUE_STATUS_LABELS, PRIORITY_LABELS } = useTranslatedLabels()
   const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')

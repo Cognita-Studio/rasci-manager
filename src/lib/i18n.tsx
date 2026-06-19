@@ -210,6 +210,15 @@ const translations = {
     issueCatEdit: 'Edytuj kategorię',
     issueCatName: 'Nazwa *',
     issueCatColor: 'Kolor',
+    // Status & priority labels (used in translated maps)
+    riskStatusOpen: 'Otwarte',
+    riskStatusMonitoring: 'Obserwowane',
+    riskStatusMitigated: 'Zmitygowane',
+    riskStatusClosed: 'Zamknięte',
+    issueStatusOpen: 'Otwarte',
+    issueStatusInProgress: 'W trakcie',
+    issueStatusResolved: 'Rozwiązane',
+    issueStatusClosed: 'Zamknięte',
   },
   en: {
     appName: 'RASCI Manager',
@@ -418,6 +427,15 @@ const translations = {
     issueCatEdit: 'Edit category',
     issueCatName: 'Name *',
     issueCatColor: 'Color',
+    // Status & priority labels (used in translated maps)
+    riskStatusOpen: 'Open',
+    riskStatusMonitoring: 'Monitoring',
+    riskStatusMitigated: 'Mitigated',
+    riskStatusClosed: 'Closed',
+    issueStatusOpen: 'Open',
+    issueStatusInProgress: 'In progress',
+    issueStatusResolved: 'Resolved',
+    issueStatusClosed: 'Closed',
   },
   no: {
     appName: 'RASCI Manager',
@@ -626,6 +644,15 @@ const translations = {
     issueCatEdit: 'Rediger kategori',
     issueCatName: 'Navn *',
     issueCatColor: 'Farge',
+    // Status & priority labels (used in translated maps)
+    riskStatusOpen: 'Åpen',
+    riskStatusMonitoring: 'Overvåkes',
+    riskStatusMitigated: 'Håndtert',
+    riskStatusClosed: 'Lukket',
+    issueStatusOpen: 'Åpen',
+    issueStatusInProgress: 'Pågår',
+    issueStatusResolved: 'Løst',
+    issueStatusClosed: 'Lukket',
   },
 } as const
 
@@ -655,4 +682,26 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
 export function useT() {
   return useContext(LangContext)
+}
+
+export function useTranslatedLabels() {
+  const { t } = useT()
+  return {
+    PRIORITY_LABELS: {
+      critical: t.priorityCritical, high: t.priorityHigh,
+      medium: t.priorityMedium, low: t.priorityLow,
+    } as Record<string, string>,
+    STATUS_LABELS: {
+      not_started: t.statusNotStarted, in_progress: t.statusInProgress,
+      blocked: t.statusBlocked, completed: t.statusCompleted,
+    } as Record<string, string>,
+    RISK_STATUS_LABELS: {
+      open: t.riskStatusOpen, monitoring: t.riskStatusMonitoring,
+      mitigated: t.riskStatusMitigated, closed: t.riskStatusClosed,
+    } as Record<string, string>,
+    ISSUE_STATUS_LABELS: {
+      open: t.issueStatusOpen, in_progress: t.issueStatusInProgress,
+      resolved: t.issueStatusResolved, closed: t.issueStatusClosed,
+    } as Record<string, string>,
+  }
 }

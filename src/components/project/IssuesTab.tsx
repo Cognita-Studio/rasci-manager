@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, History, Link2, ShieldAlert } from 'lucide-react'
 import type { ProjectFull, Issue, IssueStatus, IssueHistory } from '../../types'
-import { ISSUE_STATUS_LABELS, ISSUE_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS } from '../../types'
+import { ISSUE_STATUS_COLORS, PRIORITY_COLORS } from '../../types'
 import { createIssue, updateIssue, deleteIssue, setIssueTaskLinks, setIssueRiskLinks, loadIssueHistory, createDefaultIssueCategories } from '../../lib/db'
 import { riskScoreColor } from '../../types'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
-import { useT } from '../../lib/i18n'
+import { useT, useTranslatedLabels } from '../../lib/i18n'
 import type { Priority } from '../../types'
 
 interface Props { data: ProjectFull; onReload: () => void }
@@ -18,6 +18,7 @@ const EMPTY = {
 
 export default function IssuesTab({ data, onReload }: Props) {
   const { t } = useT()
+  const { ISSUE_STATUS_LABELS, PRIORITY_LABELS } = useTranslatedLabels()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; issue?: Issue } | null>(null)
   const [fields, setFields] = useState(EMPTY)
